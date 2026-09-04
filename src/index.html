@@ -161,7 +161,7 @@ function codeIndex(cd) {
   const i = pool.findIndex(c => c.code === cd.code);
   return i < 0 ? 0 : i + 1;
 }
-// public-screen privacy: 'Brian Chew' → 'Brian C.' (the desk still shows full names)
+// public-screen privacy: 'Ada Lovelace' → 'Ada L.' (the desk still shows full names)
 const publicName = n => { const p = String(n || '').trim().split(/\s+/).filter(Boolean); return p.length > 1 ? `${p[0]} ${p[p.length - 1][0].toUpperCase()}.` : (p[0] || 'Guest'); };
 function codeTag(a) { return a.codes && a.codes.length ? a.codes.map(cd => `${cd.pool}#${pad3(codeIndex(cd))}`).join('+') : 'NONE'; }
 const mailCounts = () => { let sent = 0, failed = 0; for (const a of app.alloc.values()) { const st = a.mail && a.mail.status; if (st === 'sent' || st === 'dry') sent++; else if (st === 'failed') failed++; } return { sent, failed }; };

@@ -69,7 +69,7 @@ export a CSV, change settings (event, pool mode, poll interval).
 
 Sends are queued at 2/s with a timeout on each request, retries on rate limits and
 transient failures, and a sweep every 20 s that re-queues anything stuck; a restart
-re-queues every pending send. `POST /email/status`, `/email/sweep`, and `/email/send-now`
+re-queues every pending send. `GET /email/status`, `POST /email/sweep`, and `POST /email/send-now`
 exist for emergencies. Guests with no email or no code left are recorded as skipped.
 
 ## Keys and URL params
@@ -95,3 +95,8 @@ hook-relay.mjs      exposes only the webhook path for that tunnel
 assets/hero-blue.jpg  email header, from the Grok Bot brand kit
 data/codes.example.json  shape of the referral-code file
 ```
+
+## Credits
+
+three.js (MIT) and qrcode-generator (MIT) are vendored in `src/vendor/`. The email header
+image is from the Grok Bot brand kit.
