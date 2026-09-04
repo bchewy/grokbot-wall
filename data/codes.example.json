@@ -1,0 +1,50 @@
+{
+ "A": [
+  {
+   "code": "POOLA-EXAMPLE-001",
+   "url": "https://cursor.com/referral?code=POOLA-EXAMPLE-001"
+  },
+  {
+   "code": "POOLA-EXAMPLE-002",
+   "url": "https://cursor.com/referral?code=POOLA-EXAMPLE-002"
+  },
+  {
+   "code": "POOLA-EXAMPLE-003",
+   "url": "https://cursor.com/referral?code=POOLA-EXAMPLE-003"
+  },
+  {
+   "code": "POOLA-EXAMPLE-004",
+   "url": "https://cursor.com/referral?code=POOLA-EXAMPLE-004"
+  },
+  {
+   "code": "POOLA-EXAMPLE-005",
+   "url": "https://cursor.com/referral?code=POOLA-EXAMPLE-005"
+  }
+ ],
+ "B": [
+  {
+   "code": "POOLB-EXAMPLE-001",
+   "url": "https://cursor.com/referral?code=POOLB-EXAMPLE-001"
+  },
+  {
+   "code": "POOLB-EXAMPLE-002",
+   "url": "https://cursor.com/referral?code=POOLB-EXAMPLE-002"
+  },
+  {
+   "code": "POOLB-EXAMPLE-003",
+   "url": "https://cursor.com/referral?code=POOLB-EXAMPLE-003"
+  },
+  {
+   "code": "POOLB-EXAMPLE-004",
+   "url": "https://cursor.com/referral?code=POOLB-EXAMPLE-004"
+  },
+  {
+   "code": "POOLB-EXAMPLE-005",
+   "url": "https://cursor.com/referral?code=POOLB-EXAMPLE-005"
+  }
+ ],
+ "labels": {
+  "A": "Pool A",
+  "B": "Pool B"
+ }
+}

@@ -1,0 +1,7 @@
+node_modules
+dist
+data/state.json
+data/state.backup-*.json
+.env
+screenshots
+.git

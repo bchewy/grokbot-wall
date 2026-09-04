@@ -1,0 +1,9 @@
+node_modules/
+data/state.json
+data/state.backup-*.json
+.env
+dist/
+.DS_Store
+cloudflared/*.json
+cloudflared/config.yml
+data/codes.json

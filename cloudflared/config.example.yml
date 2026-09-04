@@ -1,0 +1,8 @@
+# Copy to cloudflared/config.yml after `cloudflared tunnel create grokbot`, and put the tunnel's
+# credentials JSON next to it (chmod 644 — the cloudflared container runs as a non-root user).
+tunnel: <tunnel-id>
+credentials-file: /etc/cloudflared/<tunnel-id>.json
+ingress:
+  - hostname: grokbot.example.com
+    service: http://wall:8787
+  - service: http_status:404

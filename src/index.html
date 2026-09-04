@@ -1,0 +1,1139 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Grok Bot · Check-in Wall</title>
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<link rel="icon" href="data:,">
+<style>
+  :root { --accent:#4F9CF9; --fg:#ececf1; --dim:#8a8f9a; --line:#2a2d35; --bg:#06070a; --mono:"JetBrains Mono","SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace; }
+  [hidden]{display:none!important}
+  html,body{margin:0;height:100%;background:#000;overflow:hidden;font-family:var(--mono);color:var(--fg)}
+  #stage{position:fixed;inset:0;display:flex;align-items:center;justify-content:center;background:#000}
+  #gl{display:block}
+  button{font:inherit;color:var(--fg);background:transparent;border:1px solid var(--line);padding:6px 12px;cursor:pointer;letter-spacing:.04em;text-transform:uppercase;font-size:12px}
+  button:hover{border-color:var(--accent);color:#fff}
+  button.primary{background:var(--accent);border-color:var(--accent);color:#000;font-weight:600}
+  button.danger:hover{border-color:#ff4d4d;color:#ff7b7b}
+  input,select{font:inherit;color:var(--fg);background:#0b0d12;border:1px solid var(--line);padding:8px 10px;outline:none;font-size:13px}
+  input:focus,select:focus{border-color:var(--accent)}
+  /* desk console */
+  #desk{position:fixed;inset:20px;background:rgba(6,7,10,.96);border:1px solid var(--accent);display:flex;flex-direction:column;font-size:13px;line-height:1.5;box-shadow:0 0 0 1px #000,0 40px 120px rgba(0,0,0,.85);z-index:10}
+  .dk-head{display:flex;gap:8px;align-items:center;padding:10px 14px;border-bottom:1px solid var(--line)}
+  .dk-title{color:var(--accent);font-weight:600;letter-spacing:.08em}
+  .dk-sub{color:var(--dim);margin-left:8px}
+  .dk-spacer{flex:1}
+  .dk-body{display:flex;flex:1;min-height:0}
+  .dk-left{width:46%;display:flex;flex-direction:column;border-right:1px solid var(--line)}
+  .dk-left input{margin:12px 14px;flex:none}
+  #dk-list{overflow:auto;flex:1;padding:0 6px 12px}
+  .g-row{display:grid;grid-template-columns:1fr auto auto auto;gap:10px;align-items:center;padding:7px 10px;border:1px solid transparent;cursor:pointer}
+  .g-row:hover{background:#0f1218}
+  .g-row.sel{border-color:var(--accent);background:#0f1420}
+  .g-name{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .g-email{color:var(--dim);font-size:11px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .badge{font-size:10px;letter-spacing:.08em;text-transform:uppercase;padding:2px 7px;border:1px solid var(--line);color:var(--dim);white-space:nowrap}
+  .badge.in{border-color:var(--accent);color:var(--accent)}
+  .badge.code{color:#fff;border-color:#3a3f4a}
+  .badge.bad{border-color:#ff4d4d;color:#ff7b7b}
+  .d-mail{border:1px solid var(--line);padding:12px 16px;margin:12px 0;display:flex;gap:14px;align-items:center;flex-wrap:wrap;color:#c9ccd4}
+  .d-mail .p{color:var(--accent);font-size:11px;letter-spacing:.1em;text-transform:uppercase}
+  .dk-right{flex:1;overflow:auto;padding:22px 26px}
+  .dk-empty{color:var(--dim)}
+  .d-name{font-size:26px;font-weight:600;letter-spacing:-.01em;margin:0 0 4px}
+  .d-meta{color:var(--dim);margin-bottom:18px}
+  .d-code{border:1px solid var(--line);padding:16px 18px;margin:12px 0;display:flex;gap:22px;align-items:flex-start}
+  .d-code img{image-rendering:pixelated;width:168px;height:168px;background:#fff;flex:none}
+  .d-code .c{font-size:22px;font-weight:600;letter-spacing:.02em;color:#fff;word-break:break-all}
+  .d-code .u{color:var(--dim);font-size:12px;word-break:break-all;margin:6px 0 12px}
+  .d-code .p{color:var(--accent);font-size:11px;letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
+  .row{display:flex;gap:8px;flex-wrap:wrap;margin-top:12px}
+  .hint{color:var(--dim);font-size:12px;margin-top:20px;line-height:1.7}
+  kbd{border:1px solid var(--line);padding:0 5px;color:#fff}
+  /* modal */
+  #modal{position:fixed;inset:0;background:rgba(0,0,0,.65);display:flex;align-items:center;justify-content:center;z-index:20}
+  .md-box{width:min(560px,92vw);background:#07080c;border:1px solid var(--accent);padding:22px 24px;font-size:13px;max-height:88vh;overflow:auto}
+  .md-box h3{margin:0 0 14px;font-size:13px;letter-spacing:.1em;text-transform:uppercase;color:var(--accent)}
+  .field{display:flex;flex-direction:column;gap:6px;margin:10px 0}
+  .field label{color:var(--dim);font-size:11px;letter-spacing:.08em;text-transform:uppercase}
+  .field input,.field select{width:100%;box-sizing:border-box}
+  #toast{position:fixed;left:50%;bottom:36px;transform:translateX(-50%);background:#0b0d12;border:1px solid var(--accent);padding:10px 16px;font-size:13px;z-index:30;pointer-events:none}
+  #err{position:fixed;top:0;left:0;right:0;background:#3a0b0b;color:#ffb3b3;padding:8px 14px;font-size:12px;z-index:40;white-space:pre-wrap}
+</style>
+</head>
+<body>
+<div id="stage"><canvas id="gl"></canvas></div>
+
+<div id="desk" hidden>
+  <div class="dk-head">
+    <span class="dk-title">▌ DESK CONSOLE</span><span class="dk-sub" id="dk-mode"></span>
+    <span class="dk-spacer"></span>
+    <button id="dk-manual">+ manual check-in</button>
+    <button id="dk-export">export csv</button>
+    <button id="dk-settings">settings</button>
+    <button id="dk-close">close [esc]</button>
+  </div>
+  <div class="dk-body">
+    <div class="dk-left">
+      <input id="dk-q" placeholder="search name or email…" autocomplete="off" spellcheck="false">
+      <div id="dk-list"></div>
+    </div>
+    <div class="dk-right" id="dk-detail"><div class="dk-empty">select a guest to see their credit code</div></div>
+  </div>
+</div>
+<div id="modal" hidden><div class="md-box" id="md-box"></div></div>
+<div id="toast" hidden></div>
+<div id="err" hidden></div>
+
+<script src="vendor/three.min.js" data-inline></script>
+<script src="vendor/qrcode.min.js" data-inline></script>
+<script>
+'use strict';
+// =====================================================================
+//  CONFIG & DATA
+// =====================================================================
+const CODES = /*@codes*/null; // {A:[{code,url}],B:[{code,url}],labels:{A,B}}
+const params = new URLSearchParams(location.search);
+const RAW = params.has('raw');
+const WALL_KEY = params.get('key') || '';
+const api = (path, init = {}) => fetch(path, { ...init, headers: { ...(init.headers || {}), ...(WALL_KEY ? { 'x-wall-key': WALL_KEY } : {}) } });
+const $ = s => document.querySelector(s);
+const clamp = (v, a, b) => v < a ? a : v > b ? b : v;
+const lerp = (a, b, t) => a + (b - a) * t;
+const pad2 = n => String(n).padStart(2, '0');
+const pad3 = n => String(n).padStart(3, '0');
+const nowS = () => performance.now() / 1000;
+const fmtHM = iso => { const d = new Date(iso); return isNaN(d) ? '--:--' : `${pad2(d.getHours())}:${pad2(d.getMinutes())}`; };
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+
+const hex2rgb = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const mixRgb = (a, b, t) => a.map((v, i) => Math.round(v + (b[i] - v) * t));
+const rgb2hex = c => '#' + c.map(v => v.toString(16).padStart(2, '0')).join('');
+// Grok Bot brand colours. `ui` is the accent used for text when the body colour itself is too bright/dull.
+const BRAND = [
+  { name: 'WHITE',   hex: '#FFFFFF', ui: '#0B72E1' },
+  { name: 'BROWN',   hex: '#7B4B2A', ui: '#FFA100' },
+  { name: 'RED',     hex: '#E4232F' },
+  { name: 'ORANGE',  hex: '#FF5A00' },
+  { name: 'AMBER',   hex: '#FFA100' },
+  { name: 'GREEN',   hex: '#00A65A' },
+  { name: 'TEAL',    hex: '#00A88E' },
+  { name: 'BLUE',    hex: '#0B72E1' },
+  { name: 'PURPLE',  hex: '#8A4CF0' },
+  { name: 'MAGENTA', hex: '#E5218C' },
+  { name: 'GREY',    hex: '#6E6E6E', ui: '#8A4CF0' },
+].map(c => { const main = c.ui || c.hex; const rgb = hex2rgb(main); const lightRgb = mixRgb(rgb, [255, 255, 255], 0.45), deepRgb = mixRgb(rgb, [0, 0, 0], 0.5); return { ...c, main, rgb, lightRgb, deepRgb, light: rgb2hex(lightRgb), deep: rgb2hex(deepRgb) }; });
+const CHROMA = ['RED', 'ORANGE', 'AMBER', 'GREEN', 'TEAL', 'BLUE', 'PURPLE', 'MAGENTA'].map(n => BRAND.findIndex(c => c.name === n));
+const WHITE = [240, 240, 244], GREY = [128, 134, 148], DIM = [66, 70, 82], BLACK = [0, 0, 0];
+let colorIdx = 0, celebColor = 6;           // white body + blue UI to start; check-ins walk the colour wheel
+const accent = () => BRAND[colorIdx];
+const bodyHex = () => BRAND[colorIdx].hex;
+function bgTriple() {
+  const k = Math.max(0, CHROMA.indexOf(BRAND.findIndex(c => c.hex === accent().main)));
+  return [BRAND[CHROMA[k]], BRAND[CHROMA[(k + 1) % 8]], BRAND[CHROMA[(k + 7) % 8]]].map(c => new THREE.Color(c.main));
+}
+
+const DEMO_NAMES = ['Wei Lin Tan', 'Arjun Menon', 'Sofia Reyes', 'Kenji Watanabe', 'Priya Nair', 'Marcus Lim', 'Aisha Rahman', 'Daniel Ng', 'Chloe Zhang', 'Ravi Kumar', 'Hana Yusof', 'Jonas Berg', 'Mei Ling Chua', 'Tom Okafor', 'Nadia Hussain', 'Ethan Goh', 'Lucia Fernandez', 'Ibrahim Salleh', 'Grace Koh', 'Leon Müller', 'Sarah Teo', 'Vikram Shah', 'Yuki Tanaka', 'Ben Carter', 'Amira Zain', 'Felix Ong', 'Nur Aisyah', 'Oscar Lee', 'Zara Ahmed', 'Kai Wong', 'Elena Petrova', 'Samuel Choo', 'Ines Duarte', 'Rohan Iyer', 'Jade Lau', 'Noah Kim', 'Farah Ismail', 'Liam Tan', 'Anya Bose', 'Dylan Foo'];
+
+// =====================================================================
+//  APP STATE
+// =====================================================================
+const app = {
+  mode: 'boot',            // boot | demo | luma | manual
+  server: false, luma: false,
+  eventId: null, eventName: '', eventStart: null,
+  total: 0,                // approved guests
+  guests: new Map(),       // key -> {key,id,name,email,checkedInAt,approval}
+  alloc: new Map(),        // key -> allocation
+  feed: [],                // allocations newest first
+  config: { eventId: null, poolMode: 'A-then-B', pollMs: 5000 },
+  labels: (CODES && CODES.labels) || { A: 'Pool A', B: 'Pool B' },
+  poolTotals: { A: CODES ? CODES.A.length : 0, B: CODES ? CODES.B.length : 0 },
+  lastSync: 0, syncing: false, error: '', initial: true, persist: false, email: null, lastWebhookAt: null, serverPolls: false, failedSyncs: 0, headline: '',
+  dirty: true,
+};
+const celeb = { active: null, queue: [], t0: 0, dur: 5.2, flash: 0 };
+
+function codeIndex(cd) {
+  if (cd.n) return cd.n;
+  const pool = CODES && CODES[cd.pool];
+  if (!pool) return 0;
+  const i = pool.findIndex(c => c.code === cd.code);
+  return i < 0 ? 0 : i + 1;
+}
+// public-screen privacy: 'Brian Chew' → 'Brian C.' (the desk still shows full names)
+const publicName = n => { const p = String(n || '').trim().split(/\s+/).filter(Boolean); return p.length > 1 ? `${p[0]} ${p[p.length - 1][0].toUpperCase()}.` : (p[0] || 'Guest'); };
+function codeTag(a) { return a.codes && a.codes.length ? a.codes.map(cd => `${cd.pool}#${pad3(codeIndex(cd))}`).join('+') : 'NONE'; }
+const mailCounts = () => { let sent = 0, failed = 0; for (const a of app.alloc.values()) { const st = a.mail && a.mail.status; if (st === 'sent' || st === 'dry') sent++; else if (st === 'failed') failed++; } return { sent, failed }; };
+function usedIn(pool) { let n = 0; for (const a of app.alloc.values()) for (const c of a.codes) if (c.pool === pool) n++; return n; }
+function creditsLeft() { return (app.poolTotals.A - usedIn('A')) + (app.poolTotals.B - usedIn('B')); }
+
+// ---- persistence (server first, localStorage fallback) ----
+const LS = 'grokbot.state.v1';
+function loadLocal() { try { const s = JSON.parse(localStorage.getItem(LS) || 'null'); if (s) { (s.allocations || []).forEach(a => app.alloc.set(a.key, a)); Object.assign(app.config, s.config || {}); } } catch {} }
+function saveLocal() { try { localStorage.setItem(LS, JSON.stringify({ allocations: [...app.alloc.values()], config: app.config })); } catch {} }
+
+function localAllocate(body) {
+  const key = body.key.toLowerCase();
+  if (app.alloc.has(key)) return app.alloc.get(key);
+  const used = new Set(); for (const a of app.alloc.values()) for (const c of a.codes) used.add(c.code);
+  const pick = pool => { const c = ((CODES && CODES[pool]) || []).find(c => !used.has(c.code)); return c ? { pool, code: c.code, url: c.url } : null; };
+  const codes = [];
+  if (app.config.poolMode === 'both') { for (const p of ['A', 'B']) { const c = pick(p); if (c) codes.push(c); } }
+  else for (const p of (app.config.poolMode === 'B-then-A' ? ['B', 'A'] : ['A', 'B'])) { const c = pick(p); if (c) { codes.push(c); break; } }
+  return { key, name: body.name || '', email: body.email || '', checkedInAt: body.checkedInAt || null, source: body.source || 'luma', at: new Date().toISOString(), codes };
+}
+
+async function ensureAllocated(guest, { celebrate }) {
+  const key = guest.key.toLowerCase();
+  if (app.alloc.has(key)) return app.alloc.get(key);
+  const body = { key, name: guest.name, email: guest.email, checkedInAt: guest.checkedInAt, source: guest.source || 'luma' };
+  let a;
+  if (app.persist) {
+    const r = await api('/allocate', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(body) });
+    if (!r.ok) throw new Error('allocate failed ' + r.status);
+    a = (await r.json()).allocation;
+  } else { a = localAllocate(body); }
+  if (app.alloc.has(key)) return app.alloc.get(key);
+  addAllocation(a, celebrate);
+  if (!app.persist && app.mode !== 'demo') saveLocal();
+  return a;
+}
+function addAllocation(a, celebrate) {
+  app.alloc.set(a.key, a);
+  app.feed.unshift(a);
+  app.feed.sort((x, y) => new Date(y.checkedInAt || y.at) - new Date(x.checkedInAt || x.at));
+  if (celebrate) { celeb.queue.push(a); }
+  app.dirty = true;
+}
+async function pushConfig(patch) {
+  Object.assign(app.config, patch);
+  if (app.persist) await api('/config', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify(patch) }).catch(() => {});
+  else if (app.mode !== 'demo') saveLocal();
+}
+
+// =====================================================================
+//  LUMA
+// =====================================================================
+async function lumaGet(path, q) {
+  const u = new URL('/luma' + path, location.origin);
+  Object.entries(q || {}).forEach(([k, v]) => v != null && u.searchParams.set(k, v));
+  const r = await api(u);
+  if (!r.ok) { let m = ''; try { m = (await r.json()).message || ''; } catch {} throw new Error(`Luma ${r.status} ${m}`); }
+  return r.json();
+}
+function normGuest(e) {
+  const tickets = e.event_tickets || [];
+  const ci = e.checked_in_at || tickets.map(t => t.checked_in_at).filter(Boolean).sort()[0] || null;
+  const name = e.user_name || [e.user_first_name, e.user_last_name].filter(Boolean).join(' ') || e.user_email || 'Guest';
+  return { key: String(e.user_email || e.user_id || e.id).toLowerCase(), id: e.id, name, email: e.user_email || '', checkedInAt: ci, approval: e.approval_status, source: 'luma' };
+}
+async function resolveEvent() {
+  const forced = params.get('event') || app.config.eventId;
+  if (forced) { const ev = await lumaGet('/v1/events/get', { event_id: forced }); return ev.event || ev; }
+  const after = new Date(Date.now() - 18 * 3600e3).toISOString();
+  const j = await lumaGet('/v1/calendars/events/list', { after, pagination_limit: 10, sort_column: 'start_at', sort_direction: 'asc' });
+  const list = (j.entries || []).map(e => e.event || e);
+  if (!list.length) throw new Error('No upcoming events on this calendar');
+  return list[0];
+}
+async function listEvents() {
+  const after = new Date(Date.now() - 7 * 86400e3).toISOString();
+  const j = await lumaGet('/v1/calendars/events/list', { after, pagination_limit: 25, sort_column: 'start_at', sort_direction: 'asc' });
+  return (j.entries || []).map(e => e.event || e);
+}
+let fullRefreshAt = 0;
+async function syncLuma() {
+  if (app.syncing || !app.eventId) return;
+  app.syncing = true;
+  try {
+    const full = Date.now() - fullRefreshAt > 60_000;
+    let cursor = null, pages = 0, stop = false;
+    if (full) app.total = 0;
+    do {
+      const j = await lumaGet('/v1/events/guests/list', { event_id: app.eventId, approval_status: 'approved', pagination_limit: 100, sort_column: 'checked_in_at', sort_direction: 'desc nulls last', pagination_cursor: cursor });
+      for (const e of j.entries || []) {
+        const g = normGuest(e);
+        app.guests.set(g.key, g);
+        if (full) app.total++;
+        if (g.checkedInAt) { await ensureAllocated(g, { celebrate: !app.initial }); }
+        else if (!full) stop = true;
+      }
+      cursor = j.next_cursor; pages++;
+      if (!j.has_more || stop || pages > 30) break;
+    } while (cursor);
+    if (full) fullRefreshAt = Date.now();
+    app.lastSync = Date.now(); app.error = ''; app.initial = false; app.dirty = true;
+  } catch (e) { app.error = e.message; }
+  finally { app.syncing = false; }
+}
+async function syncState() {
+  if (!app.persist) return;
+  try {
+    const r = await api('/state'); if (!r.ok) throw new Error('state ' + r.status);
+    const s = await r.json(); app.failedSyncs = 0;
+    app.labels = s.labels || app.labels; app.poolTotals = s.pools || app.poolTotals;
+    if (app.serverPolls && s.luma) {
+      if (s.luma.event) { app.eventId = s.luma.event.id; app.eventName = s.luma.event.name || ''; }
+      app.total = Math.max(s.luma.total || 0, app.feed.length); app.lastSync = s.luma.lastSync || app.lastSync; app.error = s.luma.error || '';
+    }
+    if (s.lastWebhookAt && s.lastWebhookAt !== app.lastWebhookAt) { app.lastWebhookAt = s.lastWebhookAt; if (app.mode === 'luma' && !app.initial) syncLuma(); }
+    Object.assign(app.config, s.config || {});
+    const serverKeys = new Set((s.allocations || []).map(a => a.key));
+    for (const k of [...app.alloc.keys()]) if (!serverKeys.has(k)) { app.alloc.delete(k); const i = app.feed.findIndex(f => f.key === k); if (i >= 0) app.feed.splice(i, 1); app.dirty = true; }
+    for (const a of s.allocations || []) {
+      const cur = app.alloc.get(a.key);
+      if (cur) { if (JSON.stringify(cur.mail || null) !== JSON.stringify(a.mail || null)) { cur.mail = a.mail; app.dirty = true; } continue; }
+      if (!app.alloc.has(a.key)) {
+        const recent = Date.now() - new Date(a.at).getTime() < 45_000;
+        addAllocation(a, !app.initial && recent);
+        if (!app.guests.has(a.key)) app.guests.set(a.key, { key: a.key, name: a.name, email: a.email, checkedInAt: a.checkedInAt || a.at, source: a.source });
+      }
+    }
+  } catch { app.failedSyncs++; }
+}
+
+// =====================================================================
+//  DEMO
+// =====================================================================
+let demoTimer = 0;
+function seedDemo() {
+  DEMO_NAMES.forEach((n, i) => { const key = n.toLowerCase().replace(/[^a-z]+/g, '.') + '@example.com'; app.guests.set(key, { key, id: 'demo' + i, name: n, email: key, checkedInAt: null, approval: 'approved', source: 'luma' }); });
+  app.total = DEMO_NAMES.length; app.eventName = 'Grok Bot Meetup (demo)';
+}
+function demoCheckIn() {
+  const pool = [...app.guests.values()].filter(g => !g.checkedInAt);
+  if (!pool.length) return;
+  const g = pool[Math.floor(Math.random() * pool.length)];
+  g.checkedInAt = new Date().toISOString();
+  ensureAllocated(g, { celebrate: true });
+}
+function scheduleDemo() {
+  clearTimeout(demoTimer);
+  if (params.has('noauto')) return;
+  demoTimer = setTimeout(() => { demoCheckIn(); scheduleDemo(); }, 7000 + Math.random() * 6000);
+}
+
+// =====================================================================
+//  TERMINAL GRID (glyph atlas + text layer)
+// =====================================================================
+const FONT = '"JetBrains Mono","SF Mono",Menlo,Consolas,"DejaVu Sans Mono",monospace';
+let GLYPHS = ' '; for (let i = 33; i < 127; i++) GLYPHS += String.fromCharCode(i);
+GLYPHS += '─│┌┐└┘├┤┬┴┼░▒▓█▀▄▌▐▏▕●○◆◇■□▲▼►◄★✓✗→←↑↓·•…×ÀÁÂÃÄÅÆÇÈÉÊËÌÍÎÏÑÒÓÔÕÖØÙÚÛÜÝßàáâãäåæçèéêëìíîïñòóôõöøùúûüýÿ';
+const GI = new Map(); [...GLYPHS].forEach((ch, i) => GI.set(ch, i));
+const gi = ch => { const v = GI.get(ch); return v === undefined ? GI.get('?') : v; };
+const RAMP = " .'`^\",:;Il!i~+_-?][}{1)(|/tfjrxnuvczXYUJCLQ0OZmwqpdbkhao*#MW&8%B@$";
+
+function buildAtlas(tw, th) {
+  const c = document.createElement('canvas'); c.width = 16 * tw; c.height = 16 * th;
+  const x = c.getContext('2d');
+  x.fillStyle = '#000'; x.fillRect(0, 0, c.width, c.height);
+  x.fillStyle = '#fff'; x.strokeStyle = '#fff'; x.textAlign = 'center'; x.textBaseline = 'middle';
+  x.font = `${Math.round(th * 0.86)}px ${FONT}`;
+  const lw = Math.max(1, Math.round(th * 0.075)); x.lineWidth = lw; x.lineCap = 'butt';
+  const line = (a, b, c2, d) => { x.beginPath(); x.moveTo(a, b); x.lineTo(c2, d); x.stroke(); };
+  for (let i = 0; i < GLYPHS.length; i++) {
+    const ch = GLYPHS[i]; const ox = (i % 16) * tw, oy = Math.floor(i / 16) * th; const cx = ox + tw / 2, cy = oy + th / 2;
+    const dot = () => x.fillRect(cx - lw / 2, cy - lw / 2, lw, lw);
+    switch (ch) {
+      case '█': x.fillRect(ox, oy, tw, th); break;
+      case '▀': x.fillRect(ox, oy, tw, th / 2); break;
+      case '▄': x.fillRect(ox, oy + th / 2, tw, th / 2); break;
+      case '▌': x.fillRect(ox, oy, tw / 2, th); break;
+      case '▐': x.fillRect(ox + tw / 2, oy, tw / 2, th); break;
+      case '▏': x.fillRect(ox, oy, Math.max(1, tw / 5), th); break;
+      case '▕': x.fillRect(ox + tw - Math.max(1, tw / 5), oy, Math.max(1, tw / 5), th); break;
+      case '░': case '▒': case '▓': { x.fillStyle = `rgba(255,255,255,${ch === '░' ? 0.22 : ch === '▒' ? 0.48 : 0.74})`; x.fillRect(ox, oy, tw, th); x.fillStyle = '#fff'; break; }
+      case '─': line(ox, cy, ox + tw, cy); break;
+      case '│': line(cx, oy, cx, oy + th); break;
+      case '┌': line(cx, cy, ox + tw, cy); line(cx, cy, cx, oy + th); dot(); break;
+      case '┐': line(ox, cy, cx, cy); line(cx, cy, cx, oy + th); dot(); break;
+      case '└': line(cx, oy, cx, cy); line(cx, cy, ox + tw, cy); dot(); break;
+      case '┘': line(cx, oy, cx, cy); line(ox, cy, cx, cy); dot(); break;
+      case '├': line(cx, oy, cx, oy + th); line(cx, cy, ox + tw, cy); break;
+      case '┤': line(cx, oy, cx, oy + th); line(ox, cy, cx, cy); break;
+      case '┬': line(ox, cy, ox + tw, cy); line(cx, cy, cx, oy + th); break;
+      case '┴': line(ox, cy, ox + tw, cy); line(cx, oy, cx, cy); break;
+      case '┼': line(ox, cy, ox + tw, cy); line(cx, oy, cx, oy + th); break;
+      default: x.fillText(ch, cx, cy + th * 0.03);
+    }
+  }
+  return c;
+}
+
+const DPR = (window.devicePixelRatio || 1) >= 1.5 ? 2 : 1;
+const canvas = $('#gl');
+const renderer = new THREE.WebGLRenderer({ canvas, antialias: false, powerPreference: 'high-performance' });
+renderer.setPixelRatio(DPR);
+let G = { cols: 0, rows: 0, cw: 0, ch: 0, W: 0, H: 0 };
+let glyphBuf, colorBuf, glyphTex, colorTex, atlasTex, rt, rtFine;
+const FINE = clamp(parseInt(params.get('fine')) || 3, 1, 4);   // backdrop glyphs are 1/FINE the size of the main grid
+
+const RAMPS = { classic: RAMP, blocks: ' ·░▒▓█', dots: ' .·•●', short: ' .:-=+*#%@' };
+const rampTex = {};
+for (const [name, str] of Object.entries(RAMPS)) {
+  const buf = new Uint8Array(str.length); for (let i = 0; i < str.length; i++) buf[i] = gi(str[i]);
+  const tx = new THREE.DataTexture(buf, str.length, 1, THREE.RedFormat, THREE.UnsignedByteType);
+  tx.minFilter = tx.magFilter = THREE.NearestFilter; tx.unpackAlignment = 1; tx.needsUpdate = true; rampTex[name] = tx;
+}
+function applyRamp(name) { compMat.uniforms.uRamp.value = rampTex[name]; compMat.uniforms.uRampN.value = RAMPS[name].length; }
+
+const compMat = new THREE.ShaderMaterial({
+  uniforms: {
+    uScene: { value: null }, uFine: { value: null }, uFineGrid: { value: new THREE.Vector2(2, 2) }, uGlyph: { value: null }, uColor: { value: null }, uAtlas: { value: null }, uRamp: { value: rampTex.classic },
+    uGrid: { value: new THREE.Vector2(1, 1) }, uRampN: { value: RAMP.length }, uTime: { value: 0 }, uBg: { value: 0.11 }, uFlash: { value: 0 }, uBodyPeak: { value: 1.0 },
+    uShock: { value: new THREE.Vector3(-1, -1, -1) }, uShake: { value: new THREE.Vector2(0, 0) }, uShockCol: { value: new THREE.Color('#0B72E1') }, uCellAspect: { value: 1.67 },
+  },
+  vertexShader: `varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }`,
+  fragmentShader: `
+    precision highp float;
+    uniform sampler2D uScene, uFine, uGlyph, uColor, uAtlas, uRamp;
+    uniform vec2 uGrid, uFineGrid; uniform float uRampN, uTime, uBg, uFlash, uBodyPeak;
+    uniform vec3 uShock, uShockCol; uniform vec2 uShake; uniform float uCellAspect;
+    varying vec2 vUv;
+    float hash21(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    float rampGlyph(float d){ float li = floor(clamp(d, 0.0, 1.0) * (uRampN - 1.0) + 0.5); return floor(texture2D(uRamp, vec2((li + 0.5) / uRampN, 0.5)).r * 255.0 + 0.5); }
+    void main(){
+      vec2 gp = vUv * uGrid + uShake; vec2 cell = floor(gp); vec2 f = gp - cell; vec2 cuv = (cell + 0.5) / uGrid;
+      float fineK = uFineGrid.x / uGrid.x;
+      vec2 fgp = vUv * uFineGrid + uShake * fineK; vec2 fcell = floor(fgp); vec2 ff = fgp - fcell; vec2 fuv = (fcell + 0.5) / uFineGrid;
+      // click shockwave (coarse cell units): pushes the art outward and scrambles glyphs as the ring passes
+      float amp = 0.0; vec2 sdir = vec2(0.0);
+      if (uShock.z >= 0.0) {
+        vec2 d = (cell + 0.5 - uShock.xy) * vec2(1.0, uCellAspect);
+        float dist = length(d); float R = uShock.z * 46.0;
+        float band = 1.0 - smoothstep(0.0, 5.0 + uShock.z * 5.0, abs(dist - R));
+        amp = band * exp(-uShock.z * 1.7); sdir = dist > 0.001 ? d / dist : vec2(0.0);
+      }
+      vec2 push = sdir * vec2(1.0, 1.0 / uCellAspect) / uGrid * amp * 2.5;
+      vec4 s = texture2D(uScene, cuv - push); s.rgb = pow(max(s.rgb, 0.0), vec3(0.4545));
+      vec4 sf = texture2D(uFine, fuv - push); sf.rgb = pow(max(sf.rgb, 0.0), vec3(0.4545));
+      bool solid = s.a > 0.5;                       // bot / particles live on the coarse grid
+      vec4 tc = texture2D(uColor, cuv);
+      bool text = tc.a > 0.4; float dim = (tc.a > 0.15 && !text) ? 0.22 : 1.0;
+      float g; vec3 col; vec2 fin; vec3 wash; float inv = 0.0;
+      if (text) {
+        g = floor(texture2D(uGlyph, cuv).r * 255.0 + 0.5); col = tc.rgb; inv = tc.a < 0.75 ? 1.0 : 0.0; fin = f; wash = (solid ? s.rgb : sf.rgb) * uBg * 0.35;
+      } else if (solid) {
+        float mx = max(max(s.r, s.g), s.b); float lum = dot(s.rgb, vec3(0.299, 0.587, 0.114));
+        g = rampGlyph(mx / uBodyPeak); col = s.rgb / max(mx, 0.22); col *= 0.45 + 0.55 * smoothstep(0.0, 0.55, lum); fin = f; wash = s.rgb * uBg;
+        if (amp > 0.2) { float h = hash21(cell + floor(uTime * 24.0)); if (h < amp) g = rampGlyph(h); col = mix(col, uShockCol, amp * 0.7) + amp * 0.35; }
+      } else {                                      // backdrop on the fine grid (half-size glyphs)
+        float mx = max(max(sf.r, sf.g), sf.b); float lum = dot(sf.rgb, vec3(0.299, 0.587, 0.114));
+        g = rampGlyph(lum); col = sf.rgb / max(mx, 0.22); col *= 0.45 + 0.55 * smoothstep(0.0, 0.55, lum); fin = ff; wash = sf.rgb * uBg;
+        if (amp > 0.2) { float h = hash21(fcell + floor(uTime * 24.0)); if (h < amp) g = rampGlyph(h); col = mix(col, uShockCol, amp * 0.7) + amp * 0.35; }
+      }
+      col *= dim; wash *= dim;
+      vec2 tile = vec2(mod(g, 16.0), floor(g / 16.0));
+      float a = texture2D(uAtlas, (tile + vec2(fin.x, 1.0 - fin.y)) / 16.0).r;
+      vec3 o = inv > 0.5 ? mix(col, vec3(0.03), a) : wash + col * a;
+      o += uFlash * 0.18;
+      vec2 q = vUv - 0.5; o *= 1.0 - 0.45 * dot(q, q);
+      gl_FragColor = vec4(o, 1.0);
+    }`,
+  depthTest: false, depthWrite: false,
+});
+const compScene = new THREE.Scene();
+compScene.add(new THREE.Mesh(new THREE.PlaneGeometry(2, 2), compMat));
+const compCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+function layoutGrid() {
+  const ch = parseInt(params.get('cell')) || clamp(Math.round(innerHeight / 54), 13, 34);
+  const cw = Math.round(ch * 0.6);
+  const cols = Math.floor(innerWidth / cw), rows = Math.floor(innerHeight / ch);
+  G = { cols, rows, cw, ch, W: cols * cw, H: rows * ch };
+  renderer.setSize(G.W, G.H, false); canvas.style.width = G.W + 'px'; canvas.style.height = G.H + 'px';
+  if (atlasTex) atlasTex.dispose();
+  atlasTex = new THREE.CanvasTexture(buildAtlas(cw * DPR, ch * DPR));
+  atlasTex.flipY = false; atlasTex.minFilter = THREE.LinearFilter; atlasTex.magFilter = THREE.LinearFilter; atlasTex.generateMipmaps = false;
+  glyphBuf = new Uint8Array(cols * rows); colorBuf = new Uint8Array(cols * rows * 4);
+  if (glyphTex) glyphTex.dispose(); if (colorTex) colorTex.dispose();
+  glyphTex = new THREE.DataTexture(glyphBuf, cols, rows, THREE.RedFormat, THREE.UnsignedByteType);
+  glyphTex.minFilter = glyphTex.magFilter = THREE.NearestFilter; glyphTex.unpackAlignment = 1;
+  colorTex = new THREE.DataTexture(colorBuf, cols, rows, THREE.RGBAFormat, THREE.UnsignedByteType);
+  colorTex.minFilter = colorTex.magFilter = THREE.NearestFilter;
+  if (rt) rt.dispose();
+  rt = new THREE.WebGLRenderTarget(cols * 2, rows * 2, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
+  if (rtFine) rtFine.dispose();
+  rtFine = new THREE.WebGLRenderTarget(cols * FINE * 2, rows * FINE * 2, { minFilter: THREE.LinearFilter, magFilter: THREE.LinearFilter });
+  cam.aspect = G.W / G.H; cam.updateProjectionMatrix();
+  // three scales gl_PointSize by the canvas height, not the render target's: aim for ~2.6 target pixels (≈1.3 cells)
+  pts.material.size = 2.6 * cam.position.z / (G.H * 0.5);
+  const u = compMat.uniforms; u.uScene.value = rt.texture; u.uFine.value = rtFine.texture; u.uFineGrid.value.set(cols * FINE, rows * FINE); u.uGlyph.value = glyphTex; u.uColor.value = colorTex; u.uAtlas.value = atlasTex; u.uGrid.value.set(cols, rows);
+}
+
+// ---- text drawing ----
+const idx = (c, r) => (G.rows - 1 - r) * G.cols + c;
+function put(c, r, str, color = WHITE, mode = 255) {
+  if (r < 0 || r >= G.rows) return;
+  for (let i = 0; i < str.length; i++) {
+    const cc = c + i; if (cc < 0 || cc >= G.cols) continue;
+    const k = idx(cc, r); glyphBuf[k] = gi(str[i]);
+    colorBuf[k * 4] = color[0]; colorBuf[k * 4 + 1] = color[1]; colorBuf[k * 4 + 2] = color[2]; colorBuf[k * 4 + 3] = mode;
+  }
+}
+function fillRect(c, r, w, h, ch = ' ', color = BLACK, mode = 255) { const s = ch.repeat(Math.max(0, w)); for (let i = 0; i < h; i++) put(c, r + i, s, color, mode); }
+function box(c, r, w, h, color = DIM) {
+  put(c, r, '┌' + '─'.repeat(w - 2) + '┐', color);
+  for (let i = 1; i < h - 1; i++) { put(c, r + i, '│', color); put(c + w - 1, r + i, '│', color); }
+  put(c, r + h - 1, '└' + '─'.repeat(w - 2) + '┘', color);
+}
+function typed(c, r, str, color, n, cursor = true, maxLen = 9999) {
+  str = str.slice(0, maxLen); n = Math.floor(n); if (n <= 0) return 0;
+  const s = str.slice(0, n); put(c, r, s, color);
+  if (cursor && n < str.length) put(c + s.length, r, '▌', color);
+  return s.length;
+}
+function dissolve(c, r, w, h, p) {
+  for (let y = r; y < r + h; y++) for (let x = c; x < c + w; x++) {
+    if (x < 0 || y < 0 || x >= G.cols || y >= G.rows) continue;
+    const k = idx(x, y); if (colorBuf[k * 4 + 3] < 100) continue;
+    if (Math.random() < p) { const q = Math.random(); glyphBuf[k] = gi(q < 0.5 ? ' ' : q < 0.7 ? '░' : q < 0.85 ? '▒' : '·'); colorBuf[k * 4 + 3] = 255; }
+  }
+}
+// 3x5 block font, each pixel = `wide` columns
+const F35 = {
+  A: ['.#.', '#.#', '###', '#.#', '#.#'], B: ['##.', '#.#', '##.', '#.#', '##.'], C: ['.##', '#..', '#..', '#..', '.##'], D: ['##.', '#.#', '#.#', '#.#', '##.'],
+  E: ['###', '#..', '##.', '#..', '###'], F: ['###', '#..', '##.', '#..', '#..'], G: ['.##', '#..', '#.#', '#.#', '.##'], H: ['#.#', '#.#', '###', '#.#', '#.#'],
+  I: ['###', '.#.', '.#.', '.#.', '###'], J: ['..#', '..#', '..#', '#.#', '.#.'], K: ['#.#', '#.#', '##.', '#.#', '#.#'], L: ['#..', '#..', '#..', '#..', '###'],
+  M: ['#.#', '###', '###', '#.#', '#.#'], N: ['##.', '#.#', '#.#', '#.#', '#.#'], O: ['.#.', '#.#', '#.#', '#.#', '.#.'], P: ['##.', '#.#', '##.', '#..', '#..'],
+  Q: ['.#.', '#.#', '#.#', '.#.', '..#'], R: ['##.', '#.#', '##.', '#.#', '#.#'], S: ['.##', '#..', '.#.', '..#', '##.'], T: ['###', '.#.', '.#.', '.#.', '.#.'],
+  U: ['#.#', '#.#', '#.#', '#.#', '###'], V: ['#.#', '#.#', '#.#', '#.#', '.#.'], W: ['#.#', '#.#', '###', '###', '#.#'], X: ['#.#', '#.#', '.#.', '#.#', '#.#'],
+  Y: ['#.#', '#.#', '.#.', '.#.', '.#.'], Z: ['###', '..#', '.#.', '#..', '###'],
+  0: ['###', '#.#', '#.#', '#.#', '###'], 1: ['.#.', '##.', '.#.', '.#.', '###'], 2: ['##.', '..#', '.#.', '#..', '###'], 3: ['###', '..#', '.##', '..#', '###'],
+  4: ['#.#', '#.#', '###', '..#', '..#'], 5: ['###', '#..', '##.', '..#', '##.'], 6: ['.##', '#..', '###', '#.#', '###'], 7: ['###', '..#', '.#.', '.#.', '.#.'],
+  8: ['###', '#.#', '###', '#.#', '###'], 9: ['###', '#.#', '###', '..#', '##.'],
+  ' ': ['...', '...', '...', '...', '...'], '!': ['.#.', '.#.', '.#.', '...', '.#.'], '.': ['...', '...', '...', '...', '.#.'], '-': ['...', '...', '###', '...', '...'],
+  "'": ['.#.', '.#.', '...', '...', '...'], ',': ['...', '...', '...', '.#.', '#..'], '?': ['##.', '..#', '.#.', '...', '.#.'], '+': ['...', '.#.', '###', '.#.', '...'],
+  '&': ['.#.', '#.#', '.#.', '#.#', '.##'], '/': ['..#', '..#', '.#.', '#..', '#..'], '×': ['...', '#.#', '.#.', '#.#', '...'], '·': ['...', '...', '.#.', '...', '...'],
+};
+const bigWidth = (str, wide) => str.length * (3 * wide + (wide > 1 ? 2 : 1)) - (wide > 1 ? 2 : 1);
+function bigText(c, r, str, wide, color) {
+  let x = c; const px = '█'.repeat(wide);
+  for (const ch of str.toUpperCase()) {
+    const g = F35[ch] || F35['?'];
+    for (let row = 0; row < 5; row++) for (let col = 0; col < 3; col++) if (g[row][col] === '#') put(x + col * wide, r + row, px, color);
+    x += 3 * wide + (wide > 1 ? 2 : 1);
+  }
+  return x - c;
+}
+function fitName(name, avail) {
+  const clean = name.normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^A-Za-z0-9 .'&\-!?/×·]/g, '').replace(/\s+/g, ' ').trim() || 'GUEST';
+  if (bigWidth(clean, 2) <= avail) return { text: clean, wide: 2 };
+  const first = clean.split(' ')[0];
+  if (bigWidth(clean, 1) <= avail) return { text: clean, wide: 1 };
+  if (bigWidth(first, 2) <= avail) return { text: first, wide: 2 };
+  const n = Math.max(1, Math.floor((avail + 1) / 4)); return { text: clean.slice(0, n), wide: 1 };
+}
+
+// =====================================================================
+//  3D SCENE (rendered to the low-res target, then ASCII-fied)
+// =====================================================================
+const scene = new THREE.Scene();
+const bgScene = new THREE.Scene();
+const cam = new THREE.PerspectiveCamera(35, 1, 0.1, 100); cam.position.set(0, 0, 9);
+bgScene.add(new THREE.HemisphereLight(0xffffff, 0x1a2030, 1.1)); { const k = new THREE.DirectionalLight(0xffffff, 1.6); k.position.set(-3, 4, 5); bgScene.add(k); }
+scene.add(new THREE.HemisphereLight(0xffffff, 0x1a2030, 1.3));
+const key = new THREE.DirectionalLight(0xffffff, 2.0); key.position.set(-3, 4, 5); scene.add(key);
+const rim = new THREE.PointLight(0x4f9cf9, 40, 30, 2); rim.position.set(3.5, -1.5, 2.5); scene.add(rim);
+
+const bot = new THREE.Group(); scene.add(bot);
+const bodyMat = new THREE.MeshStandardMaterial({ color: 0xffffff, roughness: 0.6, metalness: 0.0 });
+// Eyes are two tilted pills cut into the sphere surface (like the logo), done in the shader.
+const EYES = [ { cx: 0.09, cy: 0.34, half: 0.13, r: 0.135 }, { cx: 0.47, cy: 0.55, half: 0.09, r: 0.10 } ];
+const EYE_TILT = -0.62; // radians from vertical; negative = leaning like a backslash
+const eyeU = { uE1a: { value: new THREE.Vector3() }, uE1b: { value: new THREE.Vector3() }, uE2a: { value: new THREE.Vector3() }, uE2b: { value: new THREE.Vector3() }, uR1: { value: 0.1 }, uR2: { value: 0.1 }, uEyeCol: { value: new THREE.Color(0, 0, 0) } };
+function setEyes(open = 1, wow = 1) {
+  const dir = new THREE.Vector3(Math.sin(EYE_TILT), Math.cos(EYE_TILT), 0);
+  EYES.forEach((e, i) => {
+    const z = Math.sqrt(Math.max(0, 1 - e.cx * e.cx - e.cy * e.cy));
+    const c = new THREE.Vector3(e.cx, e.cy, z);
+    const a = c.clone().addScaledVector(dir, e.half * wow).normalize(), b = c.clone().addScaledVector(dir, -e.half * wow).normalize();
+    eyeU[i ? 'uE2a' : 'uE1a'].value.copy(a); eyeU[i ? 'uE2b' : 'uE1b'].value.copy(b); eyeU[i ? 'uR2' : 'uR1'].value = e.r * wow * open;
+  });
+}
+setEyes();
+bodyMat.onBeforeCompile = sh => {
+  Object.assign(sh.uniforms, eyeU);
+  sh.vertexShader = sh.vertexShader.replace('#include <common>', '#include <common>\nattribute vec3 aDir; varying vec3 vLocal;').replace('#include <begin_vertex>', '#include <begin_vertex>\nvLocal = aDir;');
+  sh.fragmentShader = sh.fragmentShader
+    .replace('#include <common>', '#include <common>\nvarying vec3 vLocal; uniform vec3 uE1a, uE1b, uE2a, uE2b, uEyeCol; uniform float uR1, uR2;\nfloat segd(vec3 p, vec3 a, vec3 b){ vec3 pa = p - a, ba = b - a; float h = clamp(dot(pa, ba) / dot(ba, ba), 0.0, 1.0); return length(pa - ba * h); }')
+    .replace('#include <dithering_fragment>', '#include <dithering_fragment>\n{ float m = max(1.0 - smoothstep(uR1 * 0.8, uR1, segd(vLocal, uE1a, uE1b)), 1.0 - smoothstep(uR2 * 0.8, uR2, segd(vLocal, uE2a, uE2b))); gl_FragColor.rgb = mix(gl_FragColor.rgb, uEyeCol, m); }');
+};
+// ---- morphing body: every form is a radial function R(dir) of the unit sphere, so the eyes stay on its face ----
+const bodyGeo = new THREE.SphereGeometry(1, 64, 48);
+const dirs = Float32Array.from(bodyGeo.attributes.position.array);
+bodyGeo.setAttribute('aDir', new THREE.BufferAttribute(dirs, 3));
+const NV = dirs.length / 3;
+const rFrom = new Float32Array(NV).fill(1), rCur = new Float32Array(NV).fill(1);
+bot.add(new THREE.Mesh(bodyGeo, bodyMat));
+
+// 2D silhouettes from the brand guidelines (implicit functions: <0 inside). Only the zero set matters.
+const sdRoundedBox = (x, y, bx, by, r) => { const qx = Math.abs(x) - bx + r, qy = Math.abs(y) - by + r; return Math.min(Math.max(qx, qy), 0) + Math.hypot(Math.max(qx, 0), Math.max(qy, 0)) - r; };
+const sdEqTriangle = (x, y, r) => { const k = Math.sqrt(3); x = Math.abs(x) - r; y = y + r / k; if (x + k * y > 0) { const nx = (x - k * y) / 2, ny = (-k * x - y) / 2; x = nx; y = ny; } x -= clamp(x, -2 * r, 0); return -Math.hypot(x, y) * Math.sign(y); };
+const sdHexagon = (x, y, r) => { const kx = -0.866025404, ky = 0.5, kz = 0.577350269; x = Math.abs(x); y = Math.abs(y); const d = 2 * Math.min(kx * x + ky * y, 0); x -= d * kx; y -= d * ky; x -= clamp(x, -kz * r, kz * r); y -= r; return Math.hypot(x, y) * Math.sign(y); };
+const sdIsoTriangle = (px, py, qx, qy) => { px = Math.abs(px); const t1 = clamp((px * qx + py * qy) / (qx * qx + qy * qy), 0, 1); const ax = px - qx * t1, ay = py - qy * t1; const t2 = clamp(px / qx, 0, 1); const bx = px - qx * t2, by = py - qy; const sgn = -Math.sign(qy); const d1 = Math.min(ax * ax + ay * ay, bx * bx + by * by); const d2 = Math.min(sgn * (px * qy - py * qx), sgn * (py - qy)); return -Math.sqrt(d1) * Math.sign(d2); };
+const CLOUD = [[0, 0, 0.72], [0.5, 0.15, 0.56], [-0.5, 0.12, 0.56], [0.05, 0.5, 0.56], [-0.3, -0.4, 0.55], [0.35, -0.38, 0.55]];
+const SD = {
+  circle:   (x, y) => Math.hypot(x, y) - 1,
+  egg:      (x, y) => { const c = Math.cos(0.3), sn = Math.sin(0.3); const px = x * c + y * sn, py = -x * sn + y * c; return Math.hypot(px / (1.08 * (1 - 0.12 * py)), py / 0.9) - 1; },
+  squircle: (x, y) => sdRoundedBox(x, y, 0.92, 0.92, 0.42),
+  pill:     (x, y) => sdRoundedBox(x, y, 1.14, 0.7, 0.66),
+  triangle: (x, y) => sdEqTriangle(x, y - 0.1, 0.74) - 0.22,
+  hexagon:  (x, y) => sdHexagon(y, x, 0.8) - 0.13,
+  cloud:    (x, y) => { let d = Infinity; for (const [cx, cy, r] of CLOUD) d = Math.min(d, Math.hypot(x - cx, y - cy) - r); return d; },
+  drop:     (x, y) => Math.min(Math.hypot(x, y + 0.15) - 0.75, sdIsoTriangle(x, 1.05 - y, 0.574, 0.718)) - 0.09,
+};
+function polarRadius(sdf, ux, uy) { let lo = 0.05, hi = 2.2; for (let i = 0; i < 22; i++) { const mid = (lo + hi) / 2; if (sdf(ux * mid, uy * mid) < 0) lo = mid; else hi = mid; } return (lo + hi) / 2; }
+const M0 = { px: 0, py: 0, pz: 0, rx: 0, ry: 0, rz: 0, sx: 1, sy: 1, sz: 1 };
+const MOTIONS = {
+  float:  t => ({ py: Math.sin(t * 1.1) * 0.05, ry: Math.sin(t * 0.5) * 0.18, rz: Math.sin(t * 0.9) * 0.05 }),
+  roll:   t => ({ rz: Math.sin(t * 1.2) * 0.28, px: Math.sin(t * 1.2) * 0.06, py: Math.abs(Math.cos(t * 1.2)) * 0.03 }),
+  tumble: t => ({ rx: Math.sin(t * 0.7) * 0.22, ry: Math.sin(t * 0.45) * 0.4, rz: Math.cos(t * 0.6) * 0.18, py: Math.sin(t * 0.8) * 0.04 }),
+  rock:   t => ({ rz: Math.sin(t * 1.6) * 0.2, py: Math.abs(Math.sin(t * 1.6)) * 0.05 }),
+  bounce: t => { const b = Math.abs(Math.sin(t * 1.6)); const sq = Math.exp(-b * b * 30); return { py: b * 0.22 - 0.08, sx: 1 + 0.12 * sq, sy: 1 - 0.18 * sq, sz: 1 + 0.12 * sq }; },
+  sway:   t => ({ ry: Math.sin(t * 0.9) * 0.55, rx: Math.sin(t * 0.5) * 0.12, py: Math.sin(t * 1.3) * 0.04 }),
+  drift:  t => ({ px: Math.sin(t * 0.5) * 0.08, py: Math.sin(t * 0.8) * 0.06, ry: Math.sin(t * 0.4) * 0.2, sx: 1 + 0.03 * Math.sin(t * 2.1), sy: 1 - 0.03 * Math.sin(t * 2.1) }),
+  drip:   t => { const b = Math.max(0, Math.sin(t * 1.4)); return { py: -b * 0.12, sy: 1 + b * 0.16, sx: 1 - b * 0.08, sz: 1 - b * 0.08 }; },
+};
+const motionAt = (name, t) => ({ ...M0, ...MOTIONS[name](t) });
+const blendMotion = (a, b, k) => { const o = {}; for (const key in M0) o[key] = lerp(a[key], b[key], k); return o; };
+// d = depth of the puffy extrusion (1 = true sphere), eye = eye size boost on flatter faces
+const STYLES = [
+  { name: 'circle',   sd: 'circle',   d: 1.0,  eye: 1.0, motion: 'float',  ramp: 'classic', line: 'grok bot is watching the door' },
+  { name: 'egg',      sd: 'egg',      d: 0.8,  eye: 1.2, motion: 'roll',   ramp: 'short',   line: 'grok bot went a bit eggy' },
+  { name: 'squircle', sd: 'squircle', d: 0.8,  eye: 1.2, motion: 'tumble', ramp: 'blocks',  line: 'grok bot went blocky' },
+  { name: 'pill',     sd: 'pill',     d: 0.8,  eye: 1.2, motion: 'rock',   ramp: 'dots',    line: 'grok bot is a pill now' },
+  { name: 'triangle', sd: 'triangle', d: 0.8,  eye: 1.2, motion: 'bounce', ramp: 'classic', line: 'grok bot is pointing up' },
+  { name: 'hexagon',  sd: 'hexagon',  d: 0.8,  eye: 1.2, motion: 'sway',   ramp: 'blocks',  line: 'grok bot: shine bright' },
+  { name: 'cloud',    sd: 'cloud',    d: 0.75, eye: 1.2, motion: 'drift',  ramp: 'dots',    line: 'grok bot is feeling fluffy' },
+  { name: 'drop',     sd: 'drop',     d: 0.8,  eye: 1.2, motion: 'drip',   ramp: 'classic', line: 'grok bot is melting a little' },
+];
+const formCache = new Map();
+function formRadii(i) {
+  if (formCache.has(i)) return formCache.get(i);
+  const f = STYLES[i], sdf = SD[f.sd], arr = new Float32Array(NV);
+  for (let v = 0; v < NV; v++) {
+    const x = dirs[v * 3], y = dirs[v * 3 + 1], z = dirs[v * 3 + 2]; const sxy = Math.hypot(x, y);
+    const fr = sxy > 1e-4 ? polarRadius(sdf, x / sxy, y / sxy) : 1;
+    arr[v] = 1 / Math.sqrt((sxy / fr) ** 2 + (z / f.d) ** 2);
+  }
+  formCache.set(i, arr); return arr;
+}
+const morph = { cur: 0, prev: 0, t0: -10, dur: 1.2, nextAt: 13, settled: -1 };
+const easeOutBack = k => 1 + 2.7 * Math.pow(k - 1, 3) + 1.7 * Math.pow(k - 1, 2);
+function setStyle(i, t, dur = 1.4) {
+  i = ((i % STYLES.length) + STYLES.length) % STYLES.length;
+  if (i === morph.cur) return;
+  morph.prev = morph.cur; morph.cur = i; morph.t0 = t; morph.dur = dur; morph.settled = -1;
+  rFrom.set(rCur); applyRamp(STYLES[i].ramp);
+  celeb.flash = Math.max(celeb.flash, 0.3);
+}
+const skinColor = () => new THREE.Color(bodyHex());
+
+// soft brand-gradient backdrop
+const bgMat = new THREE.ShaderMaterial({
+  uniforms: { uT: { value: 0 }, uC1: { value: new THREE.Color('#4F9CF9') }, uC2: { value: new THREE.Color('#E0309A') }, uC3: { value: new THREE.Color('#A98BFF') }, uBoost: { value: 1.0 } },
+  vertexShader: `varying vec2 vUv; varying float vY; void main(){ vUv = uv; vY = position.y; gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0); }`,
+  fragmentShader: `
+    precision highp float; uniform float uT, uBoost; uniform vec3 uC1, uC2, uC3; varying vec2 vUv; varying float vY;
+    float hash(vec2 p){ return fract(sin(dot(p, vec2(127.1, 311.7))) * 43758.5453); }
+    float noise(vec2 p){ vec2 i = floor(p), f = fract(p); f = f*f*(3.0-2.0*f);
+      return mix(mix(hash(i), hash(i+vec2(1,0)), f.x), mix(hash(i+vec2(0,1)), hash(i+vec2(1,1)), f.x), f.y); }
+    float fbm(vec2 p){ float v = 0.0, a = 0.5; for (int i = 0; i < 5; i++){ v += a * noise(p); p = p * 2.03 + vec2(1.7, 9.2); a *= 0.5; } return v; }
+    void main(){
+      vec2 p = vUv * vec2(3.2, 2.0); float t = uT * 0.05;
+      float n1 = fbm(p + vec2(t, -t * 0.7)); float n2 = fbm(p * 1.3 - vec2(t * 0.8, t * 0.3) + 3.1);
+      vec3 c = mix(uC1, uC2, smoothstep(0.35, 0.68, n1)); c = mix(c, uC3, smoothstep(0.55, 0.82, n2));
+      float b = 0.0015 + 0.30 * pow(smoothstep(0.30, 0.95, fbm(p * 1.5 + vec2(-t * 0.5, t) + 7.0)), 1.8);
+      b += 0.018 * smoothstep(0.35, 0.75, fbm(p * 0.55 + vec2(t * 0.3, -t * 0.2) + 21.0));
+      gl_FragColor = vec4(c * b * uBoost, 0.0);
+    }`,
+  blending: THREE.NoBlending,
+});
+const bgMesh = new THREE.Mesh(new THREE.PlaneGeometry(60, 36), bgMat); bgMesh.position.z = -10; bgScene.add(bgMesh);
+
+// ---- floating headline in the backdrop (event name as big glyph-textured letters drifting behind the bot) ----
+const HEAD_Z = -2.4;
+const headMat = new THREE.MeshBasicMaterial({ transparent: true, opacity: 0.95, depthWrite: false, color: 0xffffff });
+const headMesh = new THREE.Mesh(new THREE.PlaneGeometry(1, 1), headMat); headMesh.position.z = HEAD_Z; headMesh.visible = false; bgScene.add(headMesh);
+let headText = '', headTex = null;
+function setHeadline(text) {
+  text = String(text || '').trim().toUpperCase(); if (!text || text === headText) return; headText = text;
+  const c = document.createElement('canvas'); const font = `800 180px -apple-system, "Helvetica Neue", Helvetica, Arial, sans-serif`;
+  let x = c.getContext('2d'); x.font = font; const w = Math.ceil(x.measureText(text).width) + 120; c.width = w; c.height = 260;
+  x = c.getContext('2d'); x.font = font; x.fillStyle = '#fff'; x.textBaseline = 'middle'; x.fillText(text, 60, 136);
+  if (headTex) headTex.dispose(); headTex = new THREE.CanvasTexture(c); headTex.minFilter = THREE.LinearFilter; headMat.map = headTex; headMat.needsUpdate = true;
+  const H = 1.05; headMesh.scale.set(H * w / 260, H, 1); headMesh.userData.w = H * w / 260; headMesh.visible = true;
+}
+
+// particles
+const PN = 420;
+const pPos = new Float32Array(PN * 3), pCol = new Float32Array(PN * 3), pVel = new Float32Array(PN * 3), pLife = new Float32Array(PN);
+for (let i = 0; i < PN; i++) pPos[i * 3 + 2] = -200;
+const pGeo = new THREE.BufferGeometry();
+pGeo.setAttribute('position', new THREE.BufferAttribute(pPos, 3)); pGeo.setAttribute('color', new THREE.BufferAttribute(pCol, 3));
+const pts = new THREE.Points(pGeo, new THREE.PointsMaterial({ size: 0.05, vertexColors: true, sizeAttenuation: true, depthWrite: false })); pts.frustumCulled = false; scene.add(pts);
+function burst(n, origin, radius, pal) {
+  let spawned = 0;
+  for (let i = 0; i < PN && spawned < n; i++) {
+    if (pLife[i] > 0) continue;
+    const th = Math.random() * Math.PI * 2, ph = Math.acos(2 * Math.random() - 1), sp = radius * (1.6 + Math.random() * 2.2);
+    const dx = Math.sin(ph) * Math.cos(th), dy = Math.sin(ph) * Math.sin(th), dz = Math.cos(ph) * 0.4;
+    pPos[i * 3] = origin.x + dx * radius * 1.08; pPos[i * 3 + 1] = origin.y + dy * radius * 1.08; pPos[i * 3 + 2] = radius * 1.1 + Math.random() * radius * 0.5;
+    pVel[i * 3] = dx * sp; pVel[i * 3 + 1] = dy * sp + radius * 0.6; pVel[i * 3 + 2] = dz * sp;
+    pLife[i] = 1.1 + Math.random() * 1.2;
+    const c = new THREE.Color(Math.random() < 0.55 ? pal.main : Math.random() < 0.5 ? pal.light : '#ffffff');
+    pCol[i * 3] = c.r; pCol[i * 3 + 1] = c.g; pCol[i * 3 + 2] = c.b;
+    spawned++;
+  }
+  pGeo.attributes.color.needsUpdate = true;
+}
+function updateParticles(dt) {
+  for (let i = 0; i < PN; i++) {
+    if (pLife[i] <= 0) continue;
+    pLife[i] -= dt;
+    if (pLife[i] <= 0) { pPos[i * 3 + 2] = -200; continue; }
+    pVel[i * 3 + 1] -= 3.5 * dt; pVel[i * 3] *= 0.985; pVel[i * 3 + 1] *= 0.985;
+    pPos[i * 3] += pVel[i * 3] * dt; pPos[i * 3 + 1] += pVel[i * 3 + 1] * dt; pPos[i * 3 + 2] += pVel[i * 3 + 2] * dt;
+  }
+  pGeo.attributes.position.needsUpdate = true;
+}
+
+// world helpers
+const visH = () => 2 * cam.position.z * Math.tan(THREE.MathUtils.degToRad(cam.fov / 2));
+const cellToWorld = (cx, cy) => { const h = visH(), w = h * cam.aspect; return new THREE.Vector3((cx / G.cols - 0.5) * w, (0.5 - cy / G.rows) * h, 0); };
+const pxToWorld = px => px * visH() / G.H;
+
+const anim = { spinT0: -10, kickT0: -10, blinkT0: -10, nextBlink: 2.5, wowT0: -10, look: new THREE.Vector2(), lookTarget: new THREE.Vector2(), nextLook: 1, jolt: new THREE.Vector2(), joltT0: -10 };
+const shock = { x: -1, y: -1, t0: -10, color: new THREE.Color('#0B72E1'), shake: 0, last: -10 };
+function explode(clientX, clientY) {
+  const t = nowS(); if (t - shock.last < 2.5) return; shock.last = t;
+  const rect = canvas.getBoundingClientRect();
+  const cx = (clientX - rect.left) / G.cw, cy = (clientY - rect.top) / G.ch;      // cell coords, y from the top
+  shock.x = cx; shock.y = G.rows - cy; shock.t0 = t; shock.color.set(accent().main); shock.shake = 1;
+  const w = cellToWorld(cx, cy); const rad = bot.scale.x || 1;
+  burst(150, w, rad * 0.4, accent()); setTimeout(() => burst(70, w, rad * 0.3, accent()), 140);
+  anim.kickT0 = t; anim.wowT0 = t;
+  anim.lookTarget.set(clamp((cx / G.cols - 0.4) * 1.4, -0.5, 0.5), clamp((0.46 - cy / G.rows) * 0.9, -0.3, 0.3)); anim.nextLook = t + 3;
+  const dx = bot.position.x - w.x, dy = bot.position.y - w.y, len = Math.hypot(dx, dy) || 1; anim.jolt.set(dx / len, dy / len); anim.joltT0 = t;
+  celeb.flash = Math.max(celeb.flash, 0.25);
+}
+canvas.addEventListener('pointerdown', e => { if (!desk.hidden || !modal.hidden) return; explode(e.clientX, e.clientY); });
+const smoothCol = { c1: new THREE.Color('#0B72E1'), c2: new THREE.Color('#8A4CF0'), c3: new THREE.Color('#00A88E') };
+
+function updateWorld(t, dt, L) {
+  // bot placement from layout
+  const center = cellToWorld(L.botCx, L.botCy);
+  const rad = pxToWorld(L.botRadPx);
+  // shape morph
+  const st = STYLES[morph.cur], pv = STYLES[morph.prev];
+  const mk = clamp((t - morph.t0) / morph.dur, 0, 1), me = easeOutBack(mk);
+  if (morph.settled !== morph.cur) {
+    const rt = formRadii(morph.cur), pos = bodyGeo.attributes.position.array;
+    for (let i = 0; i < NV; i++) {
+      const r = mk < 1 ? rFrom[i] + (rt[i] - rFrom[i]) * me : rt[i];
+      rCur[i] = r; pos[i * 3] = dirs[i * 3] * r; pos[i * 3 + 1] = dirs[i * 3 + 1] * r; pos[i * 3 + 2] = dirs[i * 3 + 2] * r;
+    }
+    bodyGeo.attributes.position.needsUpdate = true; bodyGeo.computeVertexNormals();
+    if (mk >= 1) morph.settled = morph.cur;
+  }
+  const m = blendMotion(motionAt(pv.motion, t), motionAt(st.motion, t), mk);
+  const eyeK = lerp(pv.eye, st.eye, mk);
+  bodyMat.color.lerp(skinColor(), Math.min(1, dt * 2));
+  const bc = bodyMat.color; compMat.uniforms.uBodyPeak.value = Math.pow(Math.min(1, Math.max(bc.r, bc.g, bc.b, 0.02) * 1.3), 0.4545);
+  // celebration kick / spin / look-around
+  const kick = clamp((t - anim.kickT0) / 0.55, 0, 1), k = Math.sin(kick * Math.PI);
+  const jt = t - anim.joltT0, jl = jt < 0.6 ? Math.sin(jt / 0.6 * Math.PI) * 0.1 : 0;
+  bot.position.set(center.x + (m.px + anim.jolt.x * jl) * rad, center.y + (m.py + k * 0.18 + anim.jolt.y * jl) * rad, m.pz * rad);
+  bot.scale.set(rad * m.sx * (1 - 0.12 * k), rad * m.sy * (1 + 0.22 * k), rad * m.sz * (1 - 0.12 * k));
+  const spin = clamp((t - anim.spinT0) / 0.95, 0, 1), spinE = 1 - Math.pow(1 - spin, 3);
+  if (t - anim.nextLook > 0) { anim.nextLook = t + 2 + Math.random() * 3; anim.lookTarget.set((Math.random() - 0.5) * 0.5, (Math.random() - 0.5) * 0.3); }
+  anim.look.lerp(anim.lookTarget, dt * 2.5);
+  bot.rotation.set(anim.look.y * 0.6 + m.rx, anim.look.x + m.ry + spinE * Math.PI * 2, m.rz);
+  // blink / wow
+  if (t > anim.nextBlink) { anim.blinkT0 = t; anim.nextBlink = t + 2.5 + Math.random() * 4; }
+  const bl = (t - anim.blinkT0) < 0.16 && !params.has('noblink') ? 0.25 : 1;
+  const wow = clamp((t - anim.wowT0) / 1.4, 0, 1), wowS = 1 + 0.35 * Math.sin(wow * Math.PI);
+  setEyes(bl, wowS * eyeK);
+  // colours
+  const [c1, c2, c3] = bgTriple();
+  smoothCol.c1.lerp(c1, dt * 1.5); smoothCol.c2.lerp(c2, dt * 1.5); smoothCol.c3.lerp(c3, dt * 1.5);
+  bgMat.uniforms.uC1.value.copy(smoothCol.c1); bgMat.uniforms.uC2.value.copy(smoothCol.c2); bgMat.uniforms.uC3.value.copy(smoothCol.c3);
+  bgMat.uniforms.uT.value = t; bgMat.uniforms.uBoost.value = 0.62 + 0.8 * k;
+  rim.color.copy(smoothCol.c1); rim.position.set(center.x + rad * 2.2, center.y - rad * 0.8, 2.5);
+  bgMesh.position.set(center.x * 0.3, 0, -10);
+  // headline drift: right → left across the upper third, behind the bot, wrapping around
+  setHeadline(params.get('headline') || app.headline || app.eventName || 'Grok Bot Meetup');
+  if (headMesh.visible) {
+    const k = (cam.position.z - HEAD_Z) / cam.position.z; const halfH = visH() / 2 * k, halfW = halfH * cam.aspect; const W = headMesh.userData.w;
+    const span = 2 * halfW + W; headMesh.position.x = halfW + W / 2 - ((t * 0.45) % span);
+    headMesh.position.y = halfH * 0.52 + Math.sin(t * 0.5) * 0.12; headMesh.rotation.z = Math.sin(t * 0.3) * 0.02;
+    headMat.color.set(accent().light);
+  }
+  updateParticles(dt);
+  celeb.flash = Math.max(0, celeb.flash - dt * 3.0);
+  compMat.uniforms.uFlash.value = celeb.flash;
+  compMat.uniforms.uTime.value = t;
+  const age = t - shock.t0; compMat.uniforms.uShock.value.set(shock.x, shock.y, age < 3 ? age : -1);
+  shock.shake *= Math.exp(-dt * 7); compMat.uniforms.uShake.value.set((Math.random() - 0.5) * shock.shake * 1.2, (Math.random() - 0.5) * shock.shake * 0.7);
+  compMat.uniforms.uShockCol.value.copy(shock.color); compMat.uniforms.uCellAspect.value = G.ch / G.cw;
+}
+
+// =====================================================================
+//  UI LAYER
+// =====================================================================
+function layout() {
+  const { cols, rows, cw, ch } = G;
+  const FW = clamp(Math.floor(cols * 0.26), 30, 44);
+  return {
+    FW, feedC: cols - FW - 1, feedR: 1, feedMax: Math.max(3, rows - 17),
+    botCx: cols * 0.34, botCy: rows * 0.46, botRadPx: Math.min(rows * ch * 0.34, cols * cw * 0.25),
+    bannerR: rows - 11, bannerH: 9, bottomR: rows - 1,
+  };
+}
+const IDLE_LINES = ['scan your luma qr at the door to check in', 'every check-in sends cursor credits to your inbox', 'welcome to the meetup'];
+const DESK = params.has('desk');
+let idleT0 = 0, idleI = 0;
+
+function drawUI(t, L) {
+  colorBuf.fill(0);
+  const { cols, rows } = G; const A = accent();
+  drawFeed(t, L);
+  drawBottom(t, L);
+  drawBanner(t, L);
+}
+
+function drawFeed(t, L) {
+  const A = accent(); const n = Math.min(L.feedMax, app.feed.length);
+  const h = n ? n + 2 + (app.feed.length > n ? 1 : 0) : 3;
+  fillRect(L.feedC - 1, L.feedR, L.FW + 2, h + 1, ' ', BLACK, 64);
+  const cnt = `${pad3(app.feed.length)}/${pad3(Math.max(app.total, app.feed.length))}`;
+  put(L.feedC + 1, L.feedR, 'CHECK-INS', WHITE); put(L.feedC + L.FW - 1 - cnt.length, L.feedR, cnt, A.rgb);
+  put(L.feedC + 1, L.feedR + 1, '─'.repeat(L.FW - 2), DIM);
+  if (!n) put(L.feedC + 1, L.feedR + 2, '> waiting for the first guest' + (Math.floor(t * 2) % 2 ? ' ▌' : ''), GREY);
+  for (let i = 0; i < n; i++) {
+    const e = app.feed[i], r = L.feedR + 2 + i, isNew = celeb.active === e;
+    const fade = n > 1 ? i / (n - 1) : 0;
+    const col = mixRgb(WHITE, DIM, fade * 0.75), tcol = mixRgb(GREY, DIM, fade);
+    const nm = publicName(e.name || (e.email ? e.email.split('@')[0] : 'Guest')).slice(0, L.FW - 11);
+    if (isNew) fillRect(L.feedC, r, L.FW, 1, ' ', A.rgb, 128);
+    put(L.feedC + 1, r, fmtHM(e.checkedInAt || e.at), isNew ? A.rgb : tcol, isNew ? 128 : 255);
+    put(L.feedC + 8, r, nm, isNew ? A.rgb : col, isNew ? 128 : 255);
+    const ok = e.codes && e.codes.length;
+    put(L.feedC + L.FW - 2, r, ok ? '✓' : '✗', isNew ? A.rgb : ok ? mixRgb(A.rgb, DIM, fade * 0.6) : [255, 90, 90], isNew ? 128 : 255);
+  }
+  if (app.feed.length > n) put(L.feedC + 1, L.feedR + 2 + n, `+${app.feed.length - n} more`, DIM);
+}
+
+function drawBottom(t, L) {
+  const { cols } = G; const A = accent(); const br = L.bottomR;
+  fillRect(0, br, cols, 1, ' ', BLACK, 64);
+  const total = Math.max(app.total, app.feed.length, 1), pct = clamp(app.feed.length / total, 0, 1);
+  const barW = clamp(Math.floor(cols * 0.14), 10, 30), filled = Math.round(pct * barW);
+  let x = 1;
+  put(x, br, 'CHECKED IN', GREY); x += 11;
+  put(x, br, `${pad3(app.feed.length)}/${pad3(Math.max(app.total, app.feed.length))}`, WHITE); x += 9;
+  put(x, br, '█'.repeat(filled) + '░'.repeat(barW - filled), A.rgb); x += barW + 1;
+  put(x, br, `${Math.round(pct * 100)}%`, GREY);
+  // right-aligned status segments
+  const seg = [];
+  if (app.mode === 'demo') seg.push(['DEMO', [255, 200, 80]]);
+  else if (app.failedSyncs >= 3) seg.push(['WALL ✗ RECONNECTING', [255, 90, 90]]);
+  else if (app.error) seg.push(['LUMA ✗ ' + app.error.slice(0, 40), [255, 90, 90]]);
+  else seg.push(['LUMA ● LIVE', A.rgb]);
+  if (app.server && app.mode !== 'demo' && app.email && app.email.enabled) { const mc = mailCounts(); seg.push([`MAIL ${mc.sent} SENT${mc.failed ? ` · ${mc.failed} FAILED` : ''}`, mc.failed ? [255, 90, 90] : GREY]); }
+  seg.push([`CREDITS LEFT ${pad3(creditsLeft())}`, WHITE]);
+  let rx = cols - 1;
+  for (let i = seg.length - 1; i >= 0; i--) { const [txt, c] = seg[i]; rx -= txt.length; put(rx, br, txt, c); if (i) { rx -= 5; put(rx, br, '  ·  ', DIM); } }
+}
+
+function drawBanner(t, L) {
+  const A = accent(); const { cols, rows } = G; const r = L.bannerR;
+  if (celeb.active) {
+    const e = celeb.active, tt = t - celeb.t0;
+    const f = fitName(publicName(e.name || (e.email ? e.email.split('@')[0] : 'Guest')), cols - 8);
+    const bw = bigWidth(f.text, f.wide);
+    const codes = e.codes && e.codes.length;
+    const mailed = app.email && app.email.enabled && e.email && !(e.mail && (e.mail.status === 'failed' || e.mail.status === 'skipped'));
+    const l1 = `> NEW CHECK-IN  ·  ${fmtHM(e.checkedInAt || e.at)}  ·  WELCOME`;
+    const l3 = !codes ? '> NO CREDITS LEFT ✗' : mailed ? '> CURSOR CREDITS ✓  ·  YOUR CODE IS ON ITS WAY TO YOUR INBOX' : '> CURSOR CREDITS ✓  ·  RESERVED FOR YOU';
+    const w = Math.max(bw, l1.length, l3.length) + 6, x0 = Math.max(0, Math.floor((cols - w) / 2));
+    fillRect(x0, r, w, L.bannerH, ' ', BLACK, 64);
+    const cx = x0 + 3;
+    typed(cx, r + 1, l1, A.lightRgb, tt * 45, true, w - 6);
+    const chars = Math.floor((tt - 0.3) * 10);
+    if (chars > 0) bigText(x0 + Math.floor((w - bw) / 2), r + 2, f.text.slice(0, chars), f.wide, A.rgb);
+    typed(cx, r + 8, l3, codes ? WHITE : [255, 120, 120], (tt - 1.1) * 60, true, w - 6);
+    const fadeIn = celeb.dur - 0.7;
+    if (tt > fadeIn) dissolve(x0, r + 1, w, L.bannerH - 1, clamp((tt - fadeIn) / 0.7, 0, 1) * 0.9);
+  } else {
+    const cyc = 9, tt = t - idleT0;
+    if (tt > cyc) { idleT0 = t; idleI++; }
+    const line = idleI % 2 ? IDLE_LINES[idleI % IDLE_LINES.length] : STYLES[morph.cur].line;
+    const n = Math.min(line.length, Math.floor(tt * 30));
+    const shown = '> ' + line.slice(0, n);
+    fillRect(1, rows - 3, shown.length + 3, 1, ' ', BLACK, 64);
+    put(2, rows - 3, shown, GREY);
+    if ((Math.floor(t * 2) % 2) === 0) put(2 + shown.length, rows - 3, '▌', GREY);
+  }
+}
+
+// =====================================================================
+//  CELEBRATION + LOOP
+// =====================================================================
+function updateCelebration(t, L) {
+  if (!celeb.active && celeb.queue.length) {
+    celeb.active = celeb.queue.shift(); celeb.t0 = t;
+    celeb.dur = celeb.queue.length > 6 ? 2.2 : celeb.queue.length > 2 ? 3.2 : 5.4;
+    celebColor = (celebColor + 1) % CHROMA.length; colorIdx = CHROMA[celebColor]; celeb.flash = 0.9;
+    anim.spinT0 = t; anim.kickT0 = t; anim.wowT0 = t;
+    setStyle(0, t, 0.55); morph.nextAt = t + celeb.dur + 6;
+    const rad = bot.scale.x || 1;
+    burst(220, bot.position, rad, accent());
+    setTimeout(() => burst(120, bot.position, rad, accent()), 320);
+    document.documentElement.style.setProperty('--accent', accent().main);
+    app.dirty = true;
+  }
+  if (celeb.active && t - celeb.t0 > celeb.dur) { celeb.active = null; app.dirty = true; }
+  if (!celeb.active && !morph.hold && t > morph.nextAt) {
+    setStyle(morph.cur + 1, t, 1.4); morph.nextAt = t + 12 + Math.random() * 5;
+    colorIdx = (colorIdx + 1) % BRAND.length; document.documentElement.style.setProperty('--accent', accent().main);
+  }
+}
+let last = nowS();
+function frame() {
+  requestAnimationFrame(frame);
+  const t = nowS(); const dt = Math.min(0.05, t - last); last = t;
+  const L = layout();
+  updateCelebration(t, L);
+  updateWorld(t, dt, L);
+  drawUI(t, L);
+  glyphTex.needsUpdate = true; colorTex.needsUpdate = true;
+  if (RAW) { renderer.setRenderTarget(null); renderer.render(bgScene, cam); renderer.autoClear = false; renderer.render(scene, cam); renderer.autoClear = true; }
+  else {
+    renderer.setClearColor(0x000000, 1); renderer.setRenderTarget(rtFine); renderer.render(bgScene, cam);
+    renderer.setClearColor(0x000000, 0); renderer.setRenderTarget(rt); renderer.render(scene, cam);
+    renderer.setRenderTarget(null); renderer.render(compScene, compCam);
+  }
+  if (app.dirty && !desk.hidden) renderDesk();
+}
+
+// =====================================================================
+//  DESK CONSOLE (DOM)
+// =====================================================================
+const desk = $('#desk'), deskList = $('#dk-list'), deskDetail = $('#dk-detail'), deskQ = $('#dk-q');
+let selectedKey = null;
+function guestRows() {
+  const rows = new Map();
+  for (const g of app.guests.values()) rows.set(g.key, { ...g });
+  for (const a of app.alloc.values()) { const g = rows.get(a.key) || { key: a.key, name: a.name, email: a.email, source: a.source }; g.checkedInAt = g.checkedInAt || a.checkedInAt || a.at; g.alloc = a; rows.set(a.key, g); }
+  const q = deskQ.value.trim().toLowerCase();
+  let list = [...rows.values()];
+  if (q) list = list.filter(g => (g.name || '').toLowerCase().includes(q) || (g.email || '').toLowerCase().includes(q) || (g.alloc && g.alloc.codes.some(c => c.code.toLowerCase().includes(q))));
+  list.sort((a, b) => (b.checkedInAt ? 1 : 0) - (a.checkedInAt ? 1 : 0) || (b.checkedInAt && a.checkedInAt ? new Date(b.checkedInAt) - new Date(a.checkedInAt) : 0) || (a.name || '').localeCompare(b.name || ''));
+  return list;
+}
+function renderDesk() {
+  app.dirty = false;
+  const mc = mailCounts();
+  $('#dk-mode').textContent = `${app.mode.toUpperCase()} · ${app.feed.length} checked in · ${creditsLeft()} credits left${app.persist ? '' : app.mode === 'demo' ? ' · not saved' : ' · local storage'}${app.server && app.mode !== 'demo' ? (app.email && app.email.enabled ? ` · ✉ ${mc.sent} sent${mc.failed ? `, ${mc.failed} failed` : ''}${app.email.dryRun ? ' (dry run)' : ''}` : ' · ✉ off') : ''}`;
+  const list = guestRows();
+  deskList.innerHTML = list.slice(0, 300).map(g => `<div class="g-row${g.key === selectedKey ? ' sel' : ''}" data-key="${esc(g.key)}">
+      <div><div class="g-name">${esc(g.name || g.email || 'Guest')}</div><div class="g-email">${esc(g.email || '')}</div></div>
+      <span class="badge${g.checkedInAt ? ' in' : ''}">${g.checkedInAt ? 'in ' + fmtHM(g.checkedInAt) : 'registered'}</span>
+      <span class="badge code">${g.alloc ? esc(codeTag(g.alloc)) : '—'}</span>${mailBadge(g.alloc)}</div>`).join('') || `<div class="dk-empty" style="padding:14px">no guests match</div>`;
+  renderDetail(list.find(g => g.key === selectedKey));
+}
+function mailBadge(a) {
+  const m = a && a.mail; if (!m || m.status === 'skipped') return '<span></span>';
+  const cls = m.status === 'sent' || m.status === 'dry' ? ' in' : m.status === 'failed' ? ' bad' : '';
+  return `<span class="badge${cls}">${m.status === 'sent' ? '✉ sent' : m.status === 'dry' ? '✉ dry' : m.status === 'failed' ? '✉ failed' : '✉ …'}</span>`;
+}
+function mailLine(a) {
+  const m = a.mail;
+  if (!app.email || !app.email.enabled) return 'delivery is off — set RESEND_API_KEY in .env and restart serve.mjs';
+  if (!m) return 'not sent yet';
+  if (m.status === 'sent') return `sent ${fmtHM(m.at)} to ${m.to}`;
+  if (m.status === 'dry') return `dry run ${fmtHM(m.at)} → ${m.to}`;
+  if (m.status === 'failed') return `failed: ${m.error}`;
+  if (m.status === 'queued') return 'sending…';
+  return `not sent (${m.reason || m.status})`;
+}
+function qrDataUrl(text) { try { const q = qrcode(0, 'M'); q.addData(text); q.make(); return q.createDataURL(6, 2); } catch { return ''; } }
+function renderDetail(g) {
+  if (!g) { deskDetail.innerHTML = `<div class="dk-empty">select a guest to see their credit code</div><div class="hint">keys: <kbd>D</kbd> toggle desk · <kbd>M</kbd> manual check-in · <kbd>F</kbd> fullscreen · <kbd>Esc</kbd> close</div>`; return; }
+  const a = g.alloc;
+  let html = `<h2 class="d-name">${esc(g.name || 'Guest')}</h2><div class="d-meta">${esc(g.email || 'no email')} · ${g.checkedInAt ? 'checked in ' + fmtHM(g.checkedInAt) + (g.source === 'manual' || (a && a.source === 'manual') ? ' (manual)' : ' via luma') : 'registered, not checked in'}</div>`;
+  if (a) {
+    if (!a.codes.length) html += `<div class="d-code"><div><div class="p">no codes left</div>all referral codes were allocated before this guest checked in.</div></div>`;
+    for (const cd of a.codes) {
+      html += `<div class="d-code"><img alt="qr" src="${qrDataUrl(cd.url)}"><div><div class="p">${esc(app.labels[cd.pool] || cd.pool)} · #${pad3(codeIndex(cd))}</div><div class="c">${esc(cd.code)}</div><div class="u">${esc(cd.url)}</div>
+        <div class="row"><button class="primary" data-copy="${esc(cd.url)}">copy link</button><button data-copy="${esc(cd.code)}">copy code</button></div></div></div>`;
+    }
+    if (app.server) {
+      const canSend = app.email && app.email.enabled && a.codes.length && a.email;
+      html += `<div class="d-mail"><span class="p">email</span><span>${esc(mailLine(a))}</span>${canSend ? `<button data-mail="${esc(a.key)}">${a.mail && (a.mail.status === 'sent' || a.mail.status === 'dry') ? 'resend' : 'send now'}</button>` : ''}</div>`;
+      html += `<div class="row"><button class="danger" data-release="${esc(a.key)}">release code</button><span class="hint" style="margin:0;align-self:center">returns the code to the pool; if the guest is still checked in they get re-allocated (and re-emailed) within seconds</span></div>`;
+    }
+  } else {
+    html += `<div class="row"><button class="primary" data-checkin="${esc(g.key)}">check in + allocate credits</button></div><div class="hint">allocates the next unused referral code and plays the welcome on the wall.</div>`;
+  }
+  deskDetail.innerHTML = html;
+}
+deskList.addEventListener('click', e => { const row = e.target.closest('.g-row'); if (!row) return; selectedKey = row.dataset.key; app.dirty = true; renderDesk(); });
+deskDetail.addEventListener('click', async e => {
+  const b = e.target.closest('button'); if (!b) return;
+  if (b.dataset.copy) { try { await navigator.clipboard.writeText(b.dataset.copy); toast('copied'); } catch { toast('copy failed — select it manually'); } }
+  if (b.dataset.release) {
+    if (!confirm('Release this guest\'s code back to the pool? If they are still checked in, they will be re-allocated and emailed again.')) return;
+    const r = await api('/release', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key: b.dataset.release }) });
+    if (r.ok) { app.alloc.delete(b.dataset.release); const i = app.feed.findIndex(f => f.key === b.dataset.release); if (i >= 0) app.feed.splice(i, 1); toast('released'); } else toast('release failed');
+    app.dirty = true; renderDesk(); setTimeout(syncState, 1500);
+  }
+  if (b.dataset.mail) {
+    b.disabled = true; const r = await api('/email/send', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ key: b.dataset.mail }) });
+    toast(r.ok ? 'email queued' : 'could not queue email'); setTimeout(syncState, 1500); setTimeout(syncState, 4000); setTimeout(() => { app.dirty = true; renderDesk(); }, 1800);
+  }
+  if (b.dataset.checkin) { const g = app.guests.get(b.dataset.checkin); if (!g) return; g.checkedInAt = new Date().toISOString(); g.source = 'manual'; await ensureAllocated({ ...g, source: 'manual' }, { celebrate: true }); toast(`checked in ${g.name}`); app.dirty = true; renderDesk(); }
+});
+deskQ.addEventListener('input', () => { app.dirty = true; renderDesk(); });
+function openDesk() { desk.hidden = false; app.dirty = true; renderDesk(); deskQ.focus(); }
+function closeDesk() { desk.hidden = true; }
+$('#dk-close').onclick = closeDesk;
+$('#dk-export').onclick = exportCsv;
+$('#dk-manual').onclick = manualModal;
+$('#dk-settings').onclick = settingsModal;
+
+function exportCsv() {
+  const rows = [['name', 'email', 'checked_in_at', 'allocated_at', 'source', 'pool', 'code', 'url', 'email_status', 'emailed_at', 'email_to', 'email_error']];
+  const mailCols = a => { const m = a.mail || {}; return [m.status || '', m.at || '', m.to || '', m.error || m.reason || '']; };
+  for (const a of [...app.feed].reverse()) { if (!a.codes.length) rows.push([a.name, a.email, a.checkedInAt || '', a.at, a.source, '', '', '', ...mailCols(a)]); for (const c of a.codes) rows.push([a.name, a.email, a.checkedInAt || '', a.at, a.source, c.pool, c.code, c.url, ...mailCols(a)]); }
+  const csv = rows.map(r => r.map(v => `"${String(v ?? '').replace(/"/g, '""')}"`).join(',')).join('\n');
+  const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' })); a.download = `grokbot-credits-${new Date().toISOString().slice(0, 10)}.csv`; a.click();
+  toast(`exported ${rows.length - 1} rows`);
+}
+const modal = $('#modal'), mdBox = $('#md-box');
+function openModal(html) { mdBox.innerHTML = html; modal.hidden = false; const f = mdBox.querySelector('input,select'); if (f) f.focus(); }
+function closeModal() { modal.hidden = true; }
+modal.addEventListener('click', e => { if (e.target === modal) closeModal(); });
+function manualModal() {
+  openModal(`<h3>Manual check-in</h3><form id="mf"><div class="field"><label>name</label><input name="name" required autocomplete="off"></div><div class="field"><label>email (optional, used to match luma)</label><input name="email" type="email" autocomplete="off"></div>
+    <div class="row"><button class="primary" type="submit">check in + allocate</button><button type="button" id="mf-cancel">cancel</button></div></form>`);
+  $('#mf-cancel').onclick = closeModal;
+  $('#mf').onsubmit = async e => {
+    e.preventDefault(); const fd = new FormData(e.target); const name = String(fd.get('name')).trim(), email = String(fd.get('email') || '').trim().toLowerCase();
+    if (!name) return;
+    const key = email || ('manual:' + name.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '-' + Date.now().toString(36));
+    const g = app.guests.get(key) || { key, id: key, name, email, approval: 'approved' };
+    g.name = g.name || name; g.checkedInAt = g.checkedInAt || new Date().toISOString(); g.source = 'manual'; app.guests.set(key, g);
+    closeModal(); await ensureAllocated({ ...g, source: 'manual' }, { celebrate: true }); selectedKey = key; app.dirty = true; renderDesk(); toast(`checked in ${name}`);
+  };
+}
+async function settingsModal() {
+  let evOpts = '';
+  if (app.luma) { try { const evs = await listEvents(); evOpts = evs.map(ev => `<option value="${esc(ev.id)}"${ev.id === app.eventId ? ' selected' : ''}>${esc(ev.name)} — ${new Date(ev.start_at).toLocaleString()}</option>`).join(''); } catch (e) { evOpts = `<option value="">could not list events: ${esc(e.message)}</option>`; } }
+  openModal(`<h3>Settings</h3><form id="sf">
+    ${app.luma ? `<div class="field"><label>luma event</label><select name="eventId"><option value="">auto (nearest upcoming)</option>${evOpts}</select></div>` : `<div class="field"><label>luma</label><div class="dk-empty">no API key on the server → demo/manual mode. Put LUMA_API_KEY in .env and restart serve.mjs.</div></div>`}
+    <div class="field"><label>credit pools</label><select name="poolMode"><option value="A-then-B"${app.config.poolMode === 'A-then-B' ? ' selected' : ''}>one code per guest · pool A first, then B</option><option value="B-then-A"${app.config.poolMode === 'B-then-A' ? ' selected' : ''}>one code per guest · pool B first, then A</option><option value="both"${app.config.poolMode === 'both' ? ' selected' : ''}>two codes per guest · one from each pool</option></select></div>
+    <div class="field"><label>email delivery</label><div class="dk-empty">${!app.server ? 'needs serve.mjs' : !app.email || !app.email.enabled ? 'off — set RESEND_API_KEY (and EMAIL_FROM) in .env, then restart serve.mjs' : `Resend · from ${esc(app.email.from)}${app.email.dryRun ? ' · DRY RUN (nothing is sent)' : ''}${app.email.testTo ? ` · every guest email is redirected to ${esc(app.email.testTo)}` : ''}`}</div></div>
+    ${app.server && app.email && app.email.enabled ? `<div class="field"><label>send a test email (fake code) to</label><div class="row" style="margin:0"><input id="sf-testto" type="email" placeholder="you@example.com" style="flex:1" autocomplete="off"><button type="button" id="sf-test">send test</button></div></div>` : ''}
+    <div class="field"><label>poll interval (seconds)</label><input name="poll" type="number" min="2" max="60" value="${Math.round(app.config.pollMs / 1000)}"></div>
+    <div class="field"><label>cell height px (text size, reloads)</label><input name="cell" type="number" min="12" max="40" value="${G.ch}"></div>
+    <div class="row"><button class="primary" type="submit">save</button><button type="button" id="sf-cancel">cancel</button><span class="dk-spacer"></span><button type="button" class="danger" id="sf-reset">reset allocations</button></div>
+    <div class="hint">pools: A = ${esc(app.labels.A)} (${app.poolTotals.A}) · B = ${esc(app.labels.B)} (${app.poolTotals.B}). state is ${app.persist ? 'stored on the server in data/state.json' : app.mode === 'demo' ? 'not saved (demo)' : 'stored in this browser only'}.</div></form>`);
+  $('#sf-cancel').onclick = closeModal;
+  const tb = $('#sf-test');
+  if (tb) tb.onclick = async () => {
+    const to = $('#sf-testto').value.trim(); if (!to) { toast('enter an address'); return; }
+    tb.disabled = true; tb.textContent = 'sending…';
+    try { const r = await api('/email/test', { method: 'POST', headers: { 'content-type': 'application/json' }, body: JSON.stringify({ to }) }); const j = await r.json();
+      toast(j.result ? (j.result.status === 'failed' ? `failed: ${j.result.error}` : j.result.status === 'dry' ? `dry run ok → ${to}` : `sent to ${to} (${j.result.id || 'ok'})`) : (j.message || 'error')); }
+    catch (e) { toast('error: ' + e.message); }
+    tb.disabled = false; tb.textContent = 'send test';
+  };
+  $('#sf-reset').onclick = async () => {
+    if (!confirm('Reset ALL allocations? Guests will get new codes on next sync. (A backup is written server-side.)')) return;
+    if (app.persist) await api('/reset', { method: 'POST' });
+    app.alloc.clear(); app.feed.length = 0; celeb.queue.length = 0; celeb.active = null; app.initial = true; saveLocal(); closeModal(); toast('allocations reset'); app.dirty = true;
+    if (app.mode === 'demo') { for (const g of app.guests.values()) g.checkedInAt = null; }
+    if (app.mode === 'luma') { fullRefreshAt = 0; syncLuma(); }
+  };
+  $('#sf').onsubmit = async e => {
+    e.preventDefault(); const fd = new FormData(e.target);
+    const patch = { poolMode: String(fd.get('poolMode')), pollMs: clamp(Number(fd.get('poll')) || 5, 2, 60) * 1000 };
+    if (app.luma) patch.eventId = String(fd.get('eventId') || '') || null;
+    await pushConfig(patch);
+    const cell = Number(fd.get('cell'));
+    if (cell && cell !== G.ch) { const u = new URL(location.href); u.searchParams.set('cell', cell); location.href = u.toString(); return; }
+    if (app.luma && patch.eventId !== app.eventId) { location.reload(); return; }
+    closeModal(); toast('saved');
+  };
+}
+let toastT = 0;
+function toast(msg) { const el = $('#toast'); el.textContent = msg; el.hidden = false; clearTimeout(toastT); toastT = setTimeout(() => el.hidden = true, 1800); }
+function showErr(msg) { const el = $('#err'); el.textContent = msg; el.hidden = !msg; }
+
+document.addEventListener('keydown', e => {
+  if (e.target.matches('input,select,textarea')) { if (e.key === 'Escape') { e.target.blur(); if (!modal.hidden) closeModal(); } return; }
+  const k = e.key.toLowerCase();
+  if (k === 'escape') { if (!modal.hidden) closeModal(); else if (!desk.hidden) closeDesk(); }
+  else if (k === 'd' && DESK) { e.preventDefault(); desk.hidden ? openDesk() : closeDesk(); }
+  else if (k === 'm' && DESK) { e.preventDefault(); if (desk.hidden) openDesk(); manualModal(); }
+  else if (k === 'f') { e.preventDefault(); document.fullscreenElement ? document.exitFullscreen() : document.documentElement.requestFullscreen().catch(() => {}); }
+  else if (k === ' ' && app.mode === 'demo' && desk.hidden) { e.preventDefault(); demoCheckIn(); }
+  else if (k === 'e' && e.shiftKey && DESK) exportCsv();
+});
+let resizeT = 0;
+addEventListener('resize', () => { clearTimeout(resizeT); resizeT = setTimeout(layoutGrid, 150); });
+
+// =====================================================================
+//  BOOT
+// =====================================================================
+async function boot() {
+  layoutGrid();
+  frame();
+  // served over http(s): keep retrying /health rather than falling back to demo on a network blip
+  let h = null;
+  for (let attempt = 0; ; attempt++) {
+    try { const r = await api('/health', { cache: 'no-store' }); if (r.status === 401) { showErr('Wall is locked — open it with ?key=… in the URL.'); return; } h = await r.json(); break; }
+    catch { if (location.protocol === 'file:' || params.has('demo') || attempt >= 60) break; app.error = 'connecting to server…'; await new Promise(r => setTimeout(r, 3000)); }
+  }
+  if (h) { app.server = !!h.ok; app.luma = !!h.luma; app.poolTotals = h.pools || app.poolTotals; app.email = h.email || null; app.serverPolls = !!h.serverPolls; app.headline = h.eventName || ''; app.error = ''; }
+  else app.server = false;
+  const demo = params.has('demo') || (!app.server && !params.has('manual')) || (app.server && !app.luma && !params.has('manual'));
+  app.persist = app.server && !demo;
+  if (app.persist) await syncState(); else if (!demo) loadLocal();
+  for (const a of app.alloc.values()) if (!app.feed.includes(a)) app.feed.push(a);
+  app.feed.sort((x, y) => new Date(y.checkedInAt || y.at) - new Date(x.checkedInAt || x.at));
+  if (demo) {
+    app.mode = 'demo'; seedDemo();
+    const burstN = Number(params.get('burst') || 0);
+    for (let i = 0; i < burstN; i++) setTimeout(demoCheckIn, 200 + i * 400);
+    scheduleDemo();
+  } else if (!app.luma) {
+    app.mode = 'manual';
+  } else {
+    app.mode = 'luma';
+    if (app.serverPolls) { await syncState(); if (DESK) { const loadGuests = async () => { try { for (const g of (await (await api('/guests')).json()).guests || []) app.guests.set(g.key, { ...g, source: 'luma' }); app.dirty = true; } catch {} }; loadGuests(); setInterval(loadGuests, 30000); } }
+    else try {
+      const ev = await resolveEvent(); app.eventId = ev.id; app.eventName = ev.name || ''; app.eventStart = ev.start_at;
+      const gc = ev.guest_counts && ev.guest_counts.approved; if (gc) app.total = gc.guests || 0;
+      await syncLuma();
+      const tick = async () => { await syncLuma(); setTimeout(tick, app.config.pollMs); }; setTimeout(tick, app.config.pollMs);
+    } catch (e) { app.error = e.message; showErr('Luma: ' + e.message + ' — press D → settings to pick an event, or add ?demo to the URL.'); }
+  }
+  app.initial = false;
+  if (app.persist) setInterval(syncState, app.serverPolls ? 2000 : 4000);
+  document.documentElement.style.setProperty('--accent', accent().main);
+  app.dirty = true;
+  if (params.has('style')) { setStyle(Number(params.get('style')) || 0, nowS(), 0.01); if (params.has('hold')) morph.hold = true; }
+  if (params.has('color')) { colorIdx = clamp(Number(params.get('color')) || 0, 0, BRAND.length - 1); document.documentElement.style.setProperty('--accent', accent().main); }
+  if (params.get('modal') === 'manual') { openDesk(); manualModal(); }
+  if (params.get('modal') === 'settings') { openDesk(); settingsModal(); }
+  if (params.has('desk')) { openDesk(); const first = guestRows()[0]; if (first) { selectedKey = first.key; renderDesk(); } }
+}
+boot().catch(e => showErr(String(e.stack || e)));
+</script>
+</body>
+</html>

@@ -1,0 +1,25 @@
+services:
+  wall:
+    build: .
+    container_name: grokbot-wall
+    restart: unless-stopped
+    env_file: .env
+    ports:
+      - "127.0.0.1:8787:8787"     # only reachable via the tunnel / reverse proxy on the box
+    volumes:
+      - ./data:/app/data           # codes.json in, state.json out (persists allocations + email status)
+
+  # Optional: public HTTPS hostname via a Cloudflare named tunnel.
+  #   cloudflared tunnel login && cloudflared tunnel create grokbot && cloudflared tunnel route dns grokbot grokbot.example.com
+  # then copy ~/.cloudflared/<tunnel-id>.json into ./cloudflared/ next to config.yml, set PUBLIC_URL in .env, and run
+  #   docker compose --profile tunnel up -d
+  cloudflared:
+    image: cloudflare/cloudflared:latest
+    container_name: grokbot-tunnel
+    restart: unless-stopped
+    command: tunnel --no-autoupdate --config /etc/cloudflared/config.yml run
+    volumes:
+      - ./cloudflared:/etc/cloudflared:ro
+    depends_on:
+      - wall
+    profiles: ["tunnel"]

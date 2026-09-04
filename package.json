@@ -1,0 +1,11 @@
+{
+  "name": "grokbot-wall",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "node build.mjs",
+    "start": "node build.mjs && node serve.mjs",
+    "serve": "node serve.mjs",
+    "tunnel": "node tunnel.mjs"
+  }
+}
